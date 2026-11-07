@@ -77,7 +77,7 @@ namespace lsp
                 LSP_LV2_URI("stereo_hammer"),
                 LSP_LV2UI_URI("stereo_hammer"),
                 "sh1s",
-                LSP_VST3_UID("sh1      sh1s"),
+                LSP_VST3_UID("sh1     sh1s"),
                 LSP_VST3UI_UID("sh1     sh1s"),
                 LSP_LADSPA_STEREO_HAMMER_BASE + 0,
                 LSP_LADSPA_URI("stereo_hammer"),
