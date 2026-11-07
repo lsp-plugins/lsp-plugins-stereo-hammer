@@ -1,0 +1,11 @@
+{
+	"stereo_hammer": {
+		"description": "A plugin that allows to manipulate stereo signal parameters like\nMid/Side balance, Panning and Balance, stereo\nfield rotation and more.",
+		"name": "Stereo Hammer"
+	},
+	
+	"launcher": {
+		"stereo_hammer": "Stereo"		
+	}
+}
+
