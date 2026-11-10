@@ -66,7 +66,7 @@ namespace lsp
             AMP_GAIN100("lr_arg", "Right post-gain", "Post-Gain R", GAIN_AMP_0_DB),
             SWITCH("lr_apl", "Left post-invert", "Post-Invert L", 0),
             SWITCH("lr_apr", "Right post-invert", "Post-Invert R", 0),
-            CONTROL("lr_ds", "Stereo delay shift", "Delay Shift", U_MSEC, stereo_hammer_metadata::DELAY_SHIFT),
+            CONTROL("lr_ds", "Stereo delay shift", "L/R Delay", U_MSEC, stereo_hammer_metadata::DELAY_SHIFT),
 
             // Mid/Side stage
             SWITCH("ms_on", "Mid/Side processor On", "M/S On", 1),
@@ -79,11 +79,11 @@ namespace lsp
             PAN_CTL("ms_ps", "Pan side", "Pan S", 100.0f),
             PAN_CTL("ms_bal", "Mid/Side balance", "Balance MS", 0.0f),
             CYC_CONTROL("ms_rot", "Mid/Side rotate", "Rotate M/S", U_DEG, stereo_hammer_metadata::ROTATE),
-            AMP_GAIN100("ms_amg", "Mid post-gain", "Post-Gain L", GAIN_AMP_0_DB),
-            AMP_GAIN100("ms_asg", "Side post-gain", "Post-Gain R", GAIN_AMP_0_DB),
+            AMP_GAIN100("ms_amg", "Mid post-gain", "Post-Gain M", GAIN_AMP_0_DB),
+            AMP_GAIN100("ms_asg", "Side post-gain", "Post-Gain S", GAIN_AMP_0_DB),
             SWITCH("ms_apm", "Mid post-invert", "Post-Invert M", 0),
             SWITCH("ms_aps", "Side post-invert", "Post-Invert S", 0),
-            CONTROL("ms_ds", "Mid/Side delay shift", "Delay Shift", U_MSEC, stereo_hammer_metadata::DELAY_SHIFT),
+            CONTROL("ms_ds", "Mid/Side delay shift", "M/S Delay", U_MSEC, stereo_hammer_metadata::DELAY_SHIFT),
 
             // Metering
             CONTROL("goniohs", "Goniometer strobe history size", "Gonio history", U_NONE, stereo_hammer_metadata::GONIO_HISTORY), \
