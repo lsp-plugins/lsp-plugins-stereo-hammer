@@ -54,12 +54,65 @@ namespace lsp
         stereo_hammer::stereo_hammer(const meta::plugin_t *meta):
             Module(meta)
         {
+            // Initialize channels
+            for (size_t i=0; i<2; ++i)
+            {
+                channel_t * const c     = &vChannels[i];
+                c->sBypass.construct();
+
+                c->pIn                  = NULL;
+                c->pOut                 = NULL;
+
+                c->pLevelIn             = NULL;
+                c->pLevelOut            = NULL;
+            }
+
+            construct_stage(&sLRProc);
+            construct_stage(&sMSProc);
+
             // Initialize other parameters
             vBuffer         = NULL;
 
             pBypass         = NULL;
+            pGainOut        = NULL;
 
             pData           = NULL;
+        }
+
+        void stereo_hammer::construct_stage(stage_t *stage)
+        {
+            construct_stage_param(&stage->sOld);
+            construct_stage_param(&stage->sNew);
+
+            stage->pOn              = NULL;
+            stage->pPhase           = NULL;
+            stage->pPreGain[0]      = NULL;
+            stage->pPreGain[1]      = NULL;
+            stage->pPreInvert[0]    = NULL;
+            stage->pPreInvert[1]    = NULL;
+            stage->pPan[0]          = NULL;
+            stage->pPan[1]          = NULL;
+            stage->pBalance         = NULL;
+            stage->pRotate          = NULL;
+            stage->pPostGain[0]     = NULL;
+            stage->pPostGain[1]     = NULL;
+            stage->pPostInvert[0]   = NULL;
+            stage->pPostInvert[1]   = NULL;
+            stage->pDelayShift      = NULL;
+        }
+
+        void stereo_hammer::construct_stage_param(stage_param_t *param)
+        {
+            param->fPreGain[0]      = GAIN_AMP_0_DB;
+            param->fPreGain[1]      = GAIN_AMP_0_DB;
+            param->fPan[0]          = 0.0f;
+            param->fPan[1]          = 1.0f;
+            param->fRotate[0]       = 1.0f;
+            param->fRotate[1]       = 0.0f;
+            param->fPostGain[0]     = GAIN_AMP_0_DB;
+            param->fPostGain[1]     = GAIN_AMP_0_DB;
+            param->fBalance         = 0.0f;
+            param->fDelay           = 0.0f;
         }
 
         stereo_hammer::~stereo_hammer()
@@ -73,7 +126,7 @@ namespace lsp
             Module::init(wrapper, ports);
 
             // Estimate the number of bytes to allocate
-            const size_t buf_sz     = BUFFER_SIZE * sizeof(float);
+            const size_t buf_sz     = BUFFER_SIZE * sizeof(float) * 2;
             const size_t alloc      = buf_sz;
 
             // Allocate memory-aligned data
@@ -83,18 +136,6 @@ namespace lsp
 
             // Initialize pointers to channels and temporary buffer
             vBuffer                 = advance_ptr_bytes<float>(ptr, buf_sz);
-
-            for (size_t i=0; i < 2; ++i)
-            {
-                channel_t * const c     = &vChannels[i];
-
-                // Construct in-place DSP processors
-                c->sBypass.construct();
-
-                // Initialize fields
-                c->pIn                  = NULL;
-                c->pOut                 = NULL;
-            }
 
             // Bind ports
             lsp_trace("Binding ports");
@@ -110,6 +151,54 @@ namespace lsp
 
             // Bind bypass
             BIND_PORT(pBypass);
+            BIND_PORT(pGainOut);
+
+            // Bind processor-specific ports
+            lsp_trace("Binding LR stage");
+            bind_stage(&sLRProc, port_id, ports);
+            lsp_trace("Binding MS stage");
+            bind_stage(&sMSProc, port_id, ports);
+
+            // Bind metering ports
+            lsp_trace("Binding Metering ports");
+
+            BIND_PORT(pGonioDots);
+            BIND_PORT(pGonioHistory);
+            BIND_PORT(pGoniometer);
+            BIND_PORT(pCorrelation);
+            BIND_PORT(pPanorama);
+            BIND_PORT(pMSBalance);
+            BIND_PORT(pPeak);
+            BIND_PORT(pTruePeak);
+            BIND_PORT(pRMS);
+            BIND_PORT(pMLufs);
+            BIND_PORT(pSLufs);
+            BIND_PORT(pLLufs);
+            BIND_PORT(pILufs);
+
+            for (size_t i=0; i<2; ++i)
+                BIND_PORT(vChannels[i].pLevelIn);
+            for (size_t i=0; i<2; ++i)
+                BIND_PORT(vChannels[i].pLevelOut);
+        }
+
+        void stereo_hammer::bind_stage(stage_t *stage, size_t & port_id, plug::IPort **ports)
+        {
+            BIND_PORT(stage->pOn);
+            BIND_PORT(stage->pPhase);
+            BIND_PORT(stage->pPreGain[0]);
+            BIND_PORT(stage->pPreGain[1]);
+            BIND_PORT(stage->pPreInvert[0]);
+            BIND_PORT(stage->pPreInvert[1]);
+            BIND_PORT(stage->pPan[0]);
+            BIND_PORT(stage->pPan[1]);
+            BIND_PORT(stage->pBalance);
+            BIND_PORT(stage->pRotate);
+            BIND_PORT(stage->pPostGain[0]);
+            BIND_PORT(stage->pPostGain[1]);
+            BIND_PORT(stage->pPostInvert[0]);
+            BIND_PORT(stage->pPostInvert[1]);
+            BIND_PORT(stage->pDelayShift);
         }
 
         void stereo_hammer::destroy()

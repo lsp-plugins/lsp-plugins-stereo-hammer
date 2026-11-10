@@ -22,6 +22,11 @@
 #ifndef PRIVATE_PLUGINS_STEREO_HAMMER_H_
 #define PRIVATE_PLUGINS_STEREO_HAMMER_H_
 
+#include <lsp-plug.in/dsp-units/meters/ILUFSMeter.h>
+#include <lsp-plug.in/dsp-units/meters/LoudnessMeter.h>
+#include <lsp-plug.in/dsp-units/meters/Panometer.h>
+#include <lsp-plug.in/dsp-units/meters/PeakMeter.h>
+#include <lsp-plug.in/dsp-units/meters/TruePeakMeter.h>
 #include <lsp-plug.in/dsp-units/util/Delay.h>
 #include <lsp-plug.in/dsp-units/ctl/Bypass.h>
 #include <lsp-plug.in/plug-fw/plug.h>
@@ -37,29 +42,86 @@ namespace lsp
         class stereo_hammer: public plug::Module
         {
             protected:
-                enum mode_t
+                typedef struct stage_param_t
                 {
-                    CD_MONO,
-                    CD_STEREO,
-                    CD_X2_STEREO
-                };
+                    float               fPreGain[2];
+                    float               fPan[2];
+                    float               fRotate[2];
+                    float               fPostGain[2];
+                    float               fBalance;
+                    float               fDelay;
+                } stage_param_t;
+
+                typedef struct stage_t
+                {
+                    dspu::Delay         sDelay[2];
+                    dspu::Bypass        sBypass;
+
+                    stage_param_t       sOld;               // Old (actual) settings
+                    stage_param_t       sNew;               // New (updated) settings
+
+                    plug::IPort        *pOn;
+                    plug::IPort        *pPhase;
+                    plug::IPort        *pPreGain[2];
+                    plug::IPort        *pPreInvert[2];
+                    plug::IPort        *pPan[2];
+                    plug::IPort        *pBalance;
+                    plug::IPort        *pRotate;
+                    plug::IPort        *pPostGain[2];
+                    plug::IPort        *pPostInvert[2];
+                    plug::IPort        *pDelayShift;
+                } stage_t;
 
                 typedef struct channel_t
                 {
                     // DSP processing modules
                     dspu::Bypass        sBypass;            // Bypass
+                    dspu::TruePeakMeter sTPMeter;           // True peak meter
+                    dspu::PeakMeter     sPKMeter;           // Peak meter
 
                     plug::IPort        *pIn;                // Input port
                     plug::IPort        *pOut;               // Output port
+
+                    plug::IPort        *pLevelIn;           // Input level meter
+                    plug::IPort        *pLevelOut;          // Output level meter
                 } channel_t;
 
             protected:
                 channel_t           vChannels[2];       // Audio channels
+                stage_t             sLRProc;            // Left/Right processing stage
+                stage_t             sMSProc;            // Mid/Side processing stage
+                dspu::LoudnessMeter sMLUFSMeter;        // Momentary LUFS meter
+                dspu::LoudnessMeter sSLUFSMeter;        // Short-term LUFS meter
+                dspu::ILUFSMeter    sLLUFSMeter;        // Long-term LUFS meter
+                dspu::ILUFSMeter    sILUFSMeter;        // Integrated loudness meter for an infinite period
+                dspu::Panometer     sPanometer;         // Panometer
+                dspu::Panometer     sMsBalance;         // Mid/Side balance
+
                 float              *vBuffer;            // Temporary buffer for audio processing
 
                 plug::IPort        *pBypass;            // Bypass
+                plug::IPort        *pGainOut;           // Output gain
+
+                plug::IPort        *pGonioDots;         // Goniometer dots
+                plug::IPort        *pGonioHistory;      // Goniometer history
+                plug::IPort        *pGoniometer;        // Goniometer data
+                plug::IPort        *pCorrelation;       // Correlometer output
+                plug::IPort        *pPanorama;          // Panometer output
+                plug::IPort        *pMSBalance;         // Mid/Side balance output
+                plug::IPort        *pPeak;              // Peak meter outputs
+                plug::IPort        *pTruePeak;          // True peak meter outputs
+                plug::IPort        *pRMS;               // RMS meter
+                plug::IPort        *pMLufs;             // Momentary LUFS meter
+                plug::IPort        *pSLufs;             // Short-term LUFS meter
+                plug::IPort        *pLLufs;             // Long-term LUFS meter
+                plug::IPort        *pILufs;             // Integrated LUFS meter
 
                 uint8_t            *pData;              // Allocated data
+
+            protected:
+                static void         construct_stage(stage_t *stage);
+                static void         construct_stage_param(stage_param_t *param);
+                static void         bind_stage(stage_t *stage, size_t & port_id, plug::IPort **ports);
 
             protected:
                 void                do_destroy();
