@@ -42,14 +42,18 @@ namespace lsp
         class stereo_hammer: public plug::Module
         {
             protected:
+                typedef struct mat2_t
+                {
+                    float               v[2][2];
+                } mat2_t;
+
                 typedef struct stage_param_t
                 {
                     float               fPreGain[2];
                     float               fPan[2];
-                    float               fRotate[2];
                     float               fPostGain[2];
-                    float               fBalance;
-                    float               fDelay;
+                    float               fDelay[2];
+                    float               fRotate;
                 } stage_param_t;
 
                 typedef struct stage_t
@@ -59,6 +63,9 @@ namespace lsp
 
                     stage_param_t       sOld;               // Old (actual) settings
                     stage_param_t       sNew;               // New (updated) settings
+                    mat2_t              sMatrix;            // Transform matrix
+                    bool                bMatrixChanged;     // Matrix changing flag
+                    bool                bDelayChanged;      // Delay changing flag
 
                     plug::IPort        *pOn;
                     plug::IPort        *pPhase;
@@ -122,8 +129,10 @@ namespace lsp
                 static void         construct_stage(stage_t *stage);
                 static void         construct_stage_param(stage_param_t *param);
                 static void         bind_stage(stage_t *stage, size_t & port_id, plug::IPort **ports);
+                static mat2_t       mat2mul(const mat2_t &a, const mat2_t &b);
 
             protected:
+                void                update_stage_settings(stage_t *stage);
                 void                do_destroy();
 
             public:
