@@ -62,6 +62,12 @@ namespace lsp
                 channel_t * const c     = &vChannels[i];
                 c->sBypass.construct();
 
+                c->vIn                  = NULL;
+                c->vOut                 = NULL;
+                c->vData                = NULL;
+                c->vTemp[0]             = NULL;
+                c->vTemp[1]             = NULL;
+
                 c->pIn                  = NULL;
                 c->pOut                 = NULL;
 
@@ -134,8 +140,13 @@ namespace lsp
             Module::init(wrapper, ports);
 
             // Estimate the number of bytes to allocate
-            const size_t buf_sz     = BUFFER_SIZE * sizeof(float) * 2;
-            const size_t alloc      = buf_sz;
+            const size_t buf_sz     = BUFFER_SIZE * sizeof(float);
+            const size_t alloc      =
+                buf_sz * 2 +            // vBuffer
+                2 * (                   // number of channels
+                    buf_sz +            // channel_t::vData
+                    2 * buf_sz          // channel_t::vTemp
+                );
 
             // Allocate memory-aligned data
             uint8_t *ptr            = alloc_aligned<uint8_t>(pData, alloc, OPTIMAL_ALIGN);
@@ -143,7 +154,16 @@ namespace lsp
                 return;
 
             // Initialize pointers to channels and temporary buffer
-            vBuffer                 = advance_ptr_bytes<float>(ptr, buf_sz);
+            vBuffer                 = advance_ptr_bytes<float>(ptr, buf_sz * 2);
+
+            for (size_t i=0; i<2; ++i)
+            {
+                channel_t * const c     = &vChannels[i];
+
+                c->vData                = advance_ptr_bytes<float>(ptr, buf_sz);
+                c->vTemp[0]             = advance_ptr_bytes<float>(ptr, buf_sz);
+                c->vTemp[1]             = advance_ptr_bytes<float>(ptr, buf_sz);
+            }
 
             // Bind ports
             lsp_trace("Binding ports");
@@ -236,11 +256,21 @@ namespace lsp
 
         void stereo_hammer::update_sample_rate(long sr)
         {
+            const size_t max_delay      = dspu::millis_to_samples(sr, meta::stereo_hammer_metadata::DELAY_SHIFT_MAX);
+
             // Update sample rate for the bypass processors
             for (size_t i=0; i<2; ++i)
             {
                 channel_t * const c     = &vChannels[i];
                 c->sBypass.init(sr);
+
+                sLRProc.sBypass[i].init(sr);
+                sLRProc.sDelay[i].init(max_delay);
+                sLRProc.sDelay[i].set_delay(sLRProc.sOld.fDelay[i]);
+
+                sMSProc.sBypass[i].init(sr);
+                sMSProc.sDelay[i].init(max_delay);
+                sLRProc.sDelay[i].set_delay(sMSProc.sOld.fDelay[i]);
             }
         }
 
@@ -258,7 +288,7 @@ namespace lsp
 
         void stereo_hammer::update_stage_settings(stage_t *stage)
         {
-            stage->sBypass.set_bypass(stage->pOn->value() >= 0.5f);
+            const float bypass          =  stage->pOn->value() >= 0.5f;
             const float in_phase        = (stage->pPhase->value() >= 0.5f) ? -1.0f : 1.0f;
             const float in_phase0       = (stage->pPreInvert[0]->value() >= 0.5f) ? -1.0f : 1.0f;
             const float in_phase1       = (stage->pPreInvert[1]->value() >= 0.5f) ? -1.0f : 1.0f;
@@ -268,6 +298,9 @@ namespace lsp
             const float out_phase1      = (stage->pPostInvert[1]->value() >= 0.5f) ? -1.0f : 1.0f;
             const float balance         = stage->pBalance->value() * 0.01f;
             const float delay           = dspu::millis_to_samples(fSampleRate, stage->pDelayShift->value());
+
+            stage->sBypass[0].set_bypass(bypass);
+            stage->sBypass[1].set_bypass(bypass);
 
             stage_param_t * const np    = &stage->sNew;
 
@@ -366,22 +399,119 @@ namespace lsp
             update_stage_settings(&sMSProc);
         }
 
-        void stereo_hammer::process(size_t samples)
+        void stereo_hammer::bind_buffers()
         {
-            // Process each channel independently
             for (size_t i=0; i<2; ++i)
             {
                 channel_t * const c     = &vChannels[i];
-
-                // Get input and output buffers
-                const float *in         = c->pIn->buffer<float>();
-                float *out              = c->pOut->buffer<float>();
-                if ((in == NULL) || (out == NULL))
-                    continue;
-
-                // Simple stuff at this moment
-                dsp::move(out, in, samples);
+                c->vIn                  = c->pIn->buffer<float>();
+                c->vOut                 = c->pOut->buffer<float>();
             }
+        }
+
+        void stereo_hammer::advance_buffers(size_t samples)
+        {
+            for (size_t i=0; i<2; ++i)
+            {
+                channel_t * const c     = &vChannels[i];
+                c->vIn                 += samples;
+                c->vOut                += samples;
+            }
+        }
+
+        void stereo_hammer::process_stage(
+            stage_t *stage,
+            float **ins, float **outs,
+            size_t offset, size_t total, size_t samples)
+        {
+            float * src_a    = ins[0];
+            float * src_b    = ins[1];
+            float * dst_a    = vChannels[0].vTemp[0];
+            float * dst_b    = vChannels[1].vTemp[0];
+
+            // Apply stereo manipulations
+//            if (stage->bMatrixChanged) // TODO
+//            {
+//
+//            }
+//            else
+            {
+                // Apply matrix
+                mat2_t * const m        = &stage->sMatrix;
+
+                dsp::mix_copy2(dst_a,
+                    src_a, src_b,
+                    m->v[0][0], m->v[0][1],
+                    samples);
+                dsp::mix_copy2(dst_b,
+                    src_a, src_b,
+                    m->v[1][0], m->v[1][1],
+                    samples);
+            }
+
+            // Apply delay
+            if (stage->bDelayChanged)
+            {
+                const float k           = float(offset + total) / float(samples);
+                const float delay_a     = stage->sNew.fDelay[0] * k + stage->sOld.fDelay[0] * (1.0f - k);
+                const float delay_b     = stage->sNew.fDelay[1] * k + stage->sOld.fDelay[1] * (1.0f - k);
+                stage->sDelay[0].process_ramping(dst_a, dst_b, delay_a, samples);
+                stage->sDelay[1].process_ramping(dst_a, dst_b, delay_b, samples);
+            }
+            else
+            {
+                stage->sDelay[0].process(dst_a, dst_a, samples);
+                stage->sDelay[1].process(dst_b, dst_b, samples);
+            }
+
+            // Apply bypass
+            stage->sBypass[0].process(outs[0], ins[0], dst_a, samples);
+            stage->sBypass[1].process(outs[1], ins[1], dst_b, samples);
+        }
+
+        void stereo_hammer::process(size_t samples)
+        {
+            bind_buffers();
+
+            // Perform main processing
+            float *ins[2], *outs[2];
+            for (size_t offset=0; offset<samples;)
+            {
+                const size_t to_do  = lsp_min(samples - offset, BUFFER_SIZE);
+
+                // Process stage 1
+                ins[0]              = vChannels[0].vIn;
+                ins[1]              = vChannels[1].vIn;
+                outs[0]             = vBuffer;
+                outs[1]             = &vBuffer[BUFFER_SIZE];
+                process_stage(&sLRProc, ins, outs, offset, samples, to_do);
+
+                // Process stage 2
+                ins[0]              = outs[0];
+                ins[1]              = outs[1];
+                outs[0]             = vChannels[0].vData;
+                outs[1]             = vChannels[1].vData;
+                process_stage(&sMSProc, ins, outs, offset, samples, to_do);
+
+                // Advance pointers and offsets
+                advance_buffers(to_do);
+                offset             += to_do;
+            }
+
+            // Reset ramping state
+            if (sLRProc.bMatrixChanged)
+            {
+                sLRProc.sOld            = sLRProc.sNew;
+                sLRProc.bMatrixChanged  = false;
+            }
+            sLRProc.bDelayChanged   = false;
+
+            if (sMSProc.bMatrixChanged)
+            {
+                sMSProc.sOld            = sMSProc.sNew;
+                sMSProc.bMatrixChanged  = false;
+            }
+            sMSProc.bDelayChanged   = false;
         }
 
         void stereo_hammer::dump(dspu::IStateDumper *v) const

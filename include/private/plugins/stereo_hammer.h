@@ -59,7 +59,7 @@ namespace lsp
                 typedef struct stage_t
                 {
                     dspu::Delay         sDelay[2];
-                    dspu::Bypass        sBypass;
+                    dspu::Bypass        sBypass[2];
 
                     stage_param_t       sOld;               // Old (actual) settings
                     stage_param_t       sNew;               // New (updated) settings
@@ -85,6 +85,12 @@ namespace lsp
                     dspu::Bypass        sBypass;            // Bypass
                     dspu::TruePeakMeter sTPMeter;           // True peak meter
                     dspu::PeakMeter     sPKMeter;           // Peak meter
+
+                    float              *vIn;                // Input buffer
+                    float              *vOut;               // Output buffer
+
+                    float              *vData;              // Data buffer
+                    float              *vTemp[2];           // Temporary buffers
 
                     plug::IPort        *pIn;                // Input port
                     plug::IPort        *pOut;               // Output port
@@ -134,6 +140,12 @@ namespace lsp
             protected:
                 void                update_stage_settings(stage_t *stage);
                 void                do_destroy();
+                void                bind_buffers();
+                void                advance_buffers(size_t samples);
+                void                process_stage(
+                                        stage_t *stage,
+                                        float **ins, float **outs,
+                                        size_t offset, size_t total, size_t samples);
 
             public:
                 explicit stereo_hammer(const meta::plugin_t *meta);
