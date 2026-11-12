@@ -482,9 +482,19 @@ namespace lsp
                 // Process stage 1
                 ins[0]              = vChannels[0].vIn;
                 ins[1]              = vChannels[1].vIn;
+                outs[0]             = vChannels[0].vData;
+                outs[1]             = vChannels[1].vData;
+                process_stage(&sLRProc, ins, outs, offset, samples, to_do);
+
+                // Perform mid-side transform
+                ins[0]              = outs[0];
+                ins[1]              = outs[1];
                 outs[0]             = vBuffer;
                 outs[1]             = &vBuffer[BUFFER_SIZE];
-                process_stage(&sLRProc, ins, outs, offset, samples, to_do);
+                dsp::lr_to_ms(
+                    outs[0], outs[1],
+                    ins[0], ins[1],
+                    to_do);
 
                 // Process stage 2
                 ins[0]              = outs[0];
@@ -492,6 +502,23 @@ namespace lsp
                 outs[0]             = vChannels[0].vData;
                 outs[1]             = vChannels[1].vData;
                 process_stage(&sMSProc, ins, outs, offset, samples, to_do);
+
+                // Perform reverse mid-side transform
+                ins[0]              = outs[0];
+                ins[1]              = outs[1];
+                outs[0]             = vBuffer;
+                outs[1]             = &vBuffer[BUFFER_SIZE];
+                dsp::lr_to_ms(
+                    outs[0], outs[1],
+                    ins[0], ins[1],
+                    to_do);
+
+                // Apply bypasses
+                for (size_t i=0; i<2; ++i)
+                {
+                    channel_t * const c     = &vChannels[i];
+                    c->sBypass.process(c->vOut, c->vIn, outs[i], to_do);
+                }
 
                 // Advance pointers and offsets
                 advance_buffers(to_do);
