@@ -42,10 +42,16 @@ namespace lsp
         class stereo_hammer: public plug::Module
         {
             protected:
-                typedef struct mat2_t
+                enum measure_t
                 {
-                    float               v[2][2];
-                } mat2_t;
+                    M_PRE_GAIN,
+                    M_PANNING,
+                    M_PRE_BALANCE,
+                    M_ROTATION,
+                    M_POST_GAIN,
+                    M_POST_BALANCE,
+                    M_DELAY,
+                };
 
                 typedef struct stage_param_t
                 {
@@ -67,9 +73,8 @@ namespace lsp
 
                     stage_param_t       sOld;               // Old (actual) settings
                     stage_param_t       sNew;               // New (updated) settings
-                    mat2_t              sMatrix;            // Transform matrix
-                    bool                bMatrixChanged;     // Matrix changing flag
-                    bool                bDelayChanged;      // Delay changing flag
+                    float               vMeasure[2];        // Measured values
+                    uint8_t             nMeasure;           // Measurement selection
 
                     plug::IPort        *pOn;
                     plug::IPort        *pPhase;
@@ -82,6 +87,8 @@ namespace lsp
                     plug::IPort        *pPostInvert[2];
                     plug::IPort        *pPostBalance;
                     plug::IPort        *pDelayShift;
+                    plug::IPort        *pMeasure;
+                    plug::IPort        *pMeasureLvl[2];
                 } stage_t;
 
                 typedef struct channel_t
@@ -141,9 +148,12 @@ namespace lsp
                 static void         construct_stage(stage_t *stage);
                 static void         construct_stage_param(stage_param_t *param);
                 static void         bind_stage(stage_t *stage, size_t & port_id, plug::IPort **ports);
-                static mat2_t       mat2mul(const mat2_t &a, const mat2_t &b);
+                static void         init_stage(stage_t *stage);
+                static void         measure_levels(stage_t *stage, const float *a, const float *b, measure_t measure, size_t samples);
 
             protected:
+                void                reset_meters();
+                void                output_meters();
                 void                update_stage_settings(stage_t *stage);
                 void                do_destroy();
                 void                bind_buffers();

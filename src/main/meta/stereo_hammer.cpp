@@ -42,6 +42,18 @@ namespace lsp
         //-------------------------------------------------------------------------
         // Plugin metadata
 
+        static const port_item_t measuring_stages[] =
+        {
+            { "Pre-gain",       "stereo_hammer.measure.pre-gain"        },
+            { "Panning",        "stereo_hammer.measure.panning"         },
+            { "Pre-balance",    "stereo_hammer.measure.pre-balance"     },
+            { "Rotation",       "stereo_hammer.measure.rotation"        },
+            { "Post-gain",      "stereo_hammer.measure.post-gain"       },
+            { "Post-balance",   "stereo_hammer.measure.post-balance"    },
+            { "Delay",          "stereo_hammer.measure.delay"           },
+            { NULL, NULL }
+        };
+
         static const port_t stereo_hammer_stereo_ports[] =
         {
             // Input and output audio ports
@@ -53,39 +65,45 @@ namespace lsp
 
             // Stereo stage
             SWITCH("lr_on", "Stereo processor on", "Stereo On", 1),
-            SWITCH("lr_ph", "Stereo phase invert", "Phase LR", 0),
+            SWITCH("lr_ph", "Stereo phase invert", "Phase L/R", 0),
             AMP_GAIN100("lr_blg", "Left pre-gain", "Pre-Gain L", GAIN_AMP_0_DB),
             AMP_GAIN100("lr_brg", "Right pre-gain", "Pre-Gain R", GAIN_AMP_0_DB),
-            SWITCH("lr_bpl", "Left pre-invert", "Pre-Invert L", 0),
-            SWITCH("lr_bpr", "Right pre-invert", "Pre-Invert R", 0),
+            SWITCH("lr_bpl", "Left pre-invert phase", "Pre-Phase L", 0),
+            SWITCH("lr_bpr", "Right pre-invert phase", "Pre-Phase R", 0),
             PAN_CTL("lr_pl", "Pan left", "Pan L", -100.0f),
             PAN_CTL("lr_pr", "Pan right", "Pan R", 100.0f),
-            PAN_CTL("lr_bbal", "Stereo pre-balance", "Pre-Bal LR", 0.0f),
+            PAN_CTL("lr_bbal", "Stereo pre-balance", "Pre-Bal L/R", 0.0f),
             CYC_CONTROL("lr_rot", "Stereo rotate", "Rotate L/R", U_DEG, stereo_hammer_metadata::ROTATE),
             AMP_GAIN100("lr_alg", "Left post-gain", "Post-Gain L", GAIN_AMP_0_DB),
             AMP_GAIN100("lr_arg", "Right post-gain", "Post-Gain R", GAIN_AMP_0_DB),
-            SWITCH("lr_apl", "Left post-invert", "Post-Invert L", 0),
-            SWITCH("lr_apr", "Right post-invert", "Post-Invert R", 0),
-            PAN_CTL("lr_abal", "Stereo post-balance", "Post-Bal LR", 0.0f),
+            SWITCH("lr_apl", "Left post-invert phase", "Post-Phase L", 0),
+            SWITCH("lr_apr", "Right post-invert phase", "Post-Phase R", 0),
+            PAN_CTL("lr_abal", "Stereo post-balance", "Post-Bal L/R", 0.0f),
             CONTROL("lr_dly", "Stereo delay shift", "L/R Delay", U_MSEC, stereo_hammer_metadata::DELAY_SHIFT),
+            COMBO("lr_msr", "Stereo measure place", "L/R Measure", 6, measuring_stages),
+            METER_OUT_GAIN("lr_mll", "Measued level meter left", GAIN_AMP_P_36_DB), \
+            METER_OUT_GAIN("lr_mlr", "Measued level meter right", GAIN_AMP_P_36_DB), \
 
             // Mid/Side stage
             SWITCH("ms_on", "Mid/Side processor On", "M/S On", 1),
             SWITCH("ms_ph", "Mid/Side phase invert", "Phase M/S", 0),
             AMP_GAIN100("ms_bmg", "Mid pre-gain", "Pre-Gain M", GAIN_AMP_0_DB),
             AMP_GAIN100("ms_bsg", "Side pre-gain", "Pre-Gain S", GAIN_AMP_0_DB),
-            SWITCH("ms_bpm", "Mid pre-invert", "Pre-Invert M", 0),
-            SWITCH("ms_bps", "Side pre-invert", "Pre-Invert S", 0),
+            SWITCH("ms_bpm", "Mid pre-invert phase", "Pre-Phase M", 0),
+            SWITCH("ms_bps", "Side pre-invert phase", "Pre-Phase S", 0),
             PAN_CTL("ms_pm", "Pan mid", "Pan M", -100.0f),
             PAN_CTL("ms_ps", "Pan side", "Pan S", 100.0f),
-            PAN_CTL("ms_bbal", "Mid/Side pre-balance", "Pre-Bal MS", 0.0f),
+            PAN_CTL("ms_bbal", "Mid/Side pre-balance", "Pre-Bal M/S", 0.0f),
             CYC_CONTROL("ms_rot", "Mid/Side rotate", "Rotate M/S", U_DEG, stereo_hammer_metadata::ROTATE),
             AMP_GAIN100("ms_amg", "Mid post-gain", "Post-Gain M", GAIN_AMP_0_DB),
             AMP_GAIN100("ms_asg", "Side post-gain", "Post-Gain S", GAIN_AMP_0_DB),
-            SWITCH("ms_apm", "Mid post-invert", "Post-Invert M", 0),
-            SWITCH("ms_aps", "Side post-invert", "Post-Invert S", 0),
-            PAN_CTL("ms_abal", "Mid/Side post-balance", "Post-Bal MS", 0.0f),
+            SWITCH("ms_apm", "Mid post-invert phase", "Post-Phase M", 0),
+            SWITCH("ms_aps", "Side post-invert phase", "Post-Phase S", 0),
+            PAN_CTL("ms_abal", "Mid/Side post-balance", "Post-Bal M/S", 0.0f),
             CONTROL("ms_dly", "Mid/Side delay shift", "M/S Delay", U_MSEC, stereo_hammer_metadata::DELAY_SHIFT),
+            COMBO("ms_msr", "Mid/Side measure place", "M/S Measure", 6, measuring_stages),
+            METER_OUT_GAIN("ms_mlm", "Measued level meter mid", GAIN_AMP_P_36_DB), \
+            METER_OUT_GAIN("ms_mls", "Measued level meter side", GAIN_AMP_P_36_DB), \
 
             // Metering
             CONTROL("goniohs", "Goniometer strobe history size", "Gonio history", U_NONE, stereo_hammer_metadata::GONIO_HISTORY), \

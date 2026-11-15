@@ -1,13 +1,18 @@
 <plugin resizable="true">
-	<grid rows="2" cols="2">
-		<!-- Row 1 -->
-		<group text="Stereo Correction">
+	<grid rows="2" cols="2" transpose="true">
+		<!-- Column 1 -->
+		<group text="groups.stereo_adjust">
 			<vbox>
 				<hbox>
 					<button id="lr_on" text="labels.active" />
 					<button id="lr_ph" text="labels.chan.phase" />
+					<label text="labels.measure" />
+					<ledmeter hexpand="true" height.min="256" angle="0">
+						<ledchannel id="lr_mll" min="-72 db" max="24 db" log="true" type="rms_peak" peak.visibility="true" value.color="left"/>
+						<ledchannel id="lr_mlr" min="-72 db" max="24 db" log="true" type="rms_peak" peak.visibility="true" value.color="right"/>
+					</ledmeter>
 				</hbox>
-				<grid rows="4" cols="10">
+				<grid rows="5" cols="10">
 					<!--  rows 1: headings -->
 					<cell cols="2">
 						<label text="labels.signal.pregain" />
@@ -85,18 +90,135 @@
 					<value id="lr_abal" />
 					<value id="lr_dly" />
 					
+					<!-- Row 5: measure buttons -->
+					<cell cols="2">
+						<button id="lr_msr" text="labels.measure" value="0" />
+					</cell>
+					<cell cols="2">
+						<button id="lr_msr" text="labels.measure" value="1" />
+					</cell>
+					<button id="lr_msr" text="labels.measure" value="2" />
+					<button id="lr_msr" text="labels.measure" value="3" />
+					<cell cols="2">
+						<button id="lr_msr" text="labels.measure" value="4" />
+					</cell>
+					<button id="lr_msr" text="labels.measure" value="5" />
+					<button id="lr_msr" text="labels.measure" value="6" />
 				</grid>
 			</vbox>
 		</group>
 		
+		<group text="groups.ms_adjust">
+			<vbox>
+				<hbox>
+					<button id="ms_on" text="labels.active" />
+					<button id="ms_ph" text="labels.chan.phase" />
+					<label text="labels.measure" />
+					<ledmeter hexpand="true" height.min="256" angle="0">
+						<ledchannel id="lr_mll" min="-72 db" max="24 db" log="true" type="rms_peak" peak.visibility="true" value.color="mid"/>
+						<ledchannel id="lr_mlr" min="-72 db" max="24 db" log="true" type="rms_peak" peak.visibility="true" value.color="side"/>
+					</ledmeter>
+				</hbox>
+				<grid rows="5" cols="10">
+					<!--  rows 1: headings -->
+					<cell cols="2">
+						<label text="labels.signal.pregain" />
+					</cell>
+					<cell cols="2">
+						<label text="labels.signal.pan" />
+					</cell>
+					<cell rows="2">
+						<label text="labels.signal.pre-balance" />
+					</cell>
+					<cell rows="2">
+						<label text="labels.signal.rotate" />
+					</cell>
+					<cell cols="2">
+						<label text="labels.signal.postgain" />
+					</cell>
+					<cell rows="2">
+						<label text="labels.signal.post-balance" />
+					</cell>
+					<cell rows="2">
+						<label text="labels.delay" />
+					</cell>
+					
+					<!--  rows 2: headings -->
+					<hbox>
+						<label text="labels.chan.mid" />
+						<button id="ms_bpm" font.name="lsp-icons" text="icons.actions.phase" />
+					</hbox>
+					<hbox>
+						<label text="labels.chan.side" />
+						<button id="ms_bps" font.name="lsp-icons" text="icons.actions.phase" />
+					</hbox>
+					
+					<label text="labels.chan.mid" />
+					<label text="labels.chan.side" />
+					
+					<hbox>
+						<label text="labels.chan.mid" />
+						<button id="ms_apm" font.name="lsp-icons" text="icons.actions.phase" />
+					</hbox>
+					<hbox>
+						<label text="labels.chan.side" />
+						<button id="ms_aps" font.name="lsp-icons" text="icons.actions.phase" />
+					</hbox>
+					
+					<!-- Row 3: knobs -->
+					<knob id="ms_bmg" scolor="mid" />
+					<knob id="ms_bsg" scolor="side" />
+					
+					<knob id="ms_pm" scolor="mid" />
+					<knob id="ms_ps" scolor="side" />
+					
+					<knob id="ms_bbal" />
+					<knob id="ms_rot" balance="0" zero="0" />
+					
+					<knob id="ms_amg" scolor="mid" />
+					<knob id="ms_asg" scolor="side" />
+					
+					<knob id="ms_abal" />
+					<knob id="ms_dly" />
+					
+					<!-- Row 4: values -->
+					<value id="ms_bmg" />
+					<value id="ms_bsg" />
+					
+					<value id="ms_pm" />
+					<value id="ms_ps" />
+					
+					<value id="ms_bbal" />
+					<value id="ms_rot" />
+					
+					<value id="ms_amg" />
+					<value id="ms_asg" />
+					
+					<value id="ms_abal" />
+					<value id="ms_dly" />
+					
+					<!-- Row 5: measure buttons -->
+					<cell cols="2">
+						<button id="ms_msr" text="labels.measure" value="0" />
+					</cell>
+					<cell cols="2">
+						<button id="ms_msr" text="labels.measure" value="1" />
+					</cell>
+					<button id="ms_msr" text="labels.measure" value="2" />
+					<button id="ms_msr" text="labels.measure" value="3" />
+					<cell cols="2">
+						<button id="ms_msr" text="labels.measure" value="4" />
+					</cell>
+					<button id="ms_msr" text="labels.measure" value="5" />
+					<button id="ms_msr" text="labels.measure" value="6" />
+				</grid>
+			</vbox>
+		</group>
+
+		<!-- Column 2 -->		
 		<cell rows="2">
-			<group text="Analysis">
+			<group text="groups.analysis">
 			</group>
 		</cell>
-		
-		<!-- Row 2 -->
-		<group text="Mid/Side Correction">
-			
-		</group>
 	</grid>
 </plugin>
