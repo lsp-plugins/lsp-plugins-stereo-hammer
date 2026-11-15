@@ -38,8 +38,8 @@ namespace lsp
             static constexpr float  DELAY_SHIFT_DFL             = 0.0f;                 // Default delay shift between channels
             static constexpr float  DELAY_SHIFT_STEP            = 0.1f;                 // Delay shift step
 
-            static constexpr float  ROTATE_MIN                  = -180.0f;              // Min channel rotatin
-            static constexpr float  ROTATE_MAX                  = 180.0f;               // Max channel rotation
+            static constexpr float  ROTATE_MIN                  = -720.0f;              // Min channel rotation
+            static constexpr float  ROTATE_MAX                  = 720.0f;               // Max channel rotation
             static constexpr float  ROTATE_DFL                  = 0.0f;                 // Default channel rotation
             static constexpr float  ROTATE_STEP                 = 0.25f;                // Channel rotation step
 

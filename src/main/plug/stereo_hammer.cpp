@@ -36,6 +36,7 @@ namespace lsp
     {
         /* The size of temporary buffer for audio processing */
         static constexpr size_t BUFFER_SIZE             = 0x200;
+        static constexpr float TO_RADIANS               = float(M_PI/180.0f);
 
         //---------------------------------------------------------------------
         // Plugin factory
@@ -79,7 +80,10 @@ namespace lsp
             construct_stage(&sMSProc);
 
             // Initialize other parameters
-            vBuffer         = NULL;
+            vBuffer[0]      = NULL;
+            vBuffer[1]      = NULL;
+            vRamp[0]        = NULL;
+            vRamp[1]        = NULL;
 
             pBypass         = NULL;
             pGainOut        = NULL;
@@ -107,12 +111,13 @@ namespace lsp
             stage->pPreInvert[1]    = NULL;
             stage->pPan[0]          = NULL;
             stage->pPan[1]          = NULL;
-            stage->pBalance         = NULL;
+            stage->pPreBalance      = NULL;
             stage->pRotate          = NULL;
             stage->pPostGain[0]     = NULL;
             stage->pPostGain[1]     = NULL;
             stage->pPostInvert[0]   = NULL;
             stage->pPostInvert[1]   = NULL;
+            stage->pPostBalance     = NULL;
             stage->pDelayShift      = NULL;
         }
 
@@ -126,7 +131,11 @@ namespace lsp
             param->fPostGain[1]     = GAIN_AMP_0_DB;
             param->fDelay[0]        = 0.0f;
             param->fDelay[1]        = 0.0f;
+            param->fPreBalance      = 0.0f;
+            param->fPostBalance     = 0.0f;
             param->fRotate          = 0.0f;
+            param->fRotateCos       = 1.0f;
+            param->fRotateSin       = 0.0f;
         }
 
         stereo_hammer::~stereo_hammer()
@@ -143,6 +152,7 @@ namespace lsp
             const size_t buf_sz     = BUFFER_SIZE * sizeof(float);
             const size_t alloc      =
                 buf_sz * 2 +            // vBuffer
+                buf_sz * 2 +            // vRamp
                 2 * (                   // number of channels
                     buf_sz +            // channel_t::vData
                     2 * buf_sz          // channel_t::vTemp
@@ -154,7 +164,10 @@ namespace lsp
                 return;
 
             // Initialize pointers to channels and temporary buffer
-            vBuffer                 = advance_ptr_bytes<float>(ptr, buf_sz * 2);
+            vBuffer[0]              = advance_ptr_bytes<float>(ptr, buf_sz);
+            vBuffer[1]              = advance_ptr_bytes<float>(ptr, buf_sz);
+            vRamp[0]                = advance_ptr_bytes<float>(ptr, buf_sz);
+            vRamp[1]                = advance_ptr_bytes<float>(ptr, buf_sz);
 
             for (size_t i=0; i<2; ++i)
             {
@@ -220,12 +233,13 @@ namespace lsp
             BIND_PORT(stage->pPreInvert[1]);
             BIND_PORT(stage->pPan[0]);
             BIND_PORT(stage->pPan[1]);
-            BIND_PORT(stage->pBalance);
+            BIND_PORT(stage->pPreBalance);
             BIND_PORT(stage->pRotate);
             BIND_PORT(stage->pPostGain[0]);
             BIND_PORT(stage->pPostGain[1]);
             BIND_PORT(stage->pPostInvert[0]);
             BIND_PORT(stage->pPostInvert[1]);
+            BIND_PORT(stage->pPostBalance);
             BIND_PORT(stage->pDelayShift);
         }
 
@@ -244,7 +258,10 @@ namespace lsp
                 c->sBypass.destroy();
             }
 
-            vBuffer     = NULL;
+            vBuffer[0]  = NULL;
+            vBuffer[1]  = NULL;
+            vRamp[0]    = NULL;
+            vRamp[1]    = NULL;
 
             // Free previously allocated data chunk
             if (pData != NULL)
@@ -288,44 +305,75 @@ namespace lsp
 
         void stereo_hammer::update_stage_settings(stage_t *stage)
         {
-            const float bypass          =  stage->pOn->value() >= 0.5f;
+            const float bypass          =  stage->pOn->value() < 0.5f;
             const float in_phase        = (stage->pPhase->value() >= 0.5f) ? -1.0f : 1.0f;
             const float in_phase0       = (stage->pPreInvert[0]->value() >= 0.5f) ? -1.0f : 1.0f;
             const float in_phase1       = (stage->pPreInvert[1]->value() >= 0.5f) ? -1.0f : 1.0f;
-            const float rotate          = stage->pRotate->value() * float(M_PI/360.0f);
+            const float rotate          = stage->pRotate->value();
 
             const float out_phase0      = (stage->pPostInvert[0]->value() >= 0.5f) ? -1.0f : 1.0f;
             const float out_phase1      = (stage->pPostInvert[1]->value() >= 0.5f) ? -1.0f : 1.0f;
-            const float balance         = stage->pBalance->value() * 0.01f;
+            const float pre_balance     = stage->pPreBalance->value() * 0.01f;
+            const float post_balance    = stage->pPostBalance->value() * 0.01f;
             const float delay           = dspu::millis_to_samples(fSampleRate, stage->pDelayShift->value());
 
             stage->sBypass[0].set_bypass(bypass);
             stage->sBypass[1].set_bypass(bypass);
 
             stage_param_t * const np    = &stage->sNew;
+            stage_param_t * const op    = &stage->sOld;
 
             np->fPreGain[0]             = stage->pPreGain[0]->value() * in_phase * in_phase0;
             np->fPreGain[1]             = stage->pPreGain[1]->value() * in_phase * in_phase1;
             np->fPan[0]                 = (100.0f - stage->pPan[0]->value()) * 0.005f;
             np->fPan[1]                 = (100.0f - stage->pPan[1]->value()) * 0.005f;
-            np->fRotate                 = rotate;
-            np->fPostGain[0]            = stage->pPostGain[0]->value() * out_phase0 * (1.0f - balance);
-            np->fPostGain[1]            = stage->pPostGain[1]->value() * out_phase1 * balance;
+            np->fPostGain[0]            = stage->pPostGain[0]->value() * out_phase0;
+            np->fPostGain[1]            = stage->pPostGain[1]->value() * out_phase1;
             np->fDelay[0]               = lsp_max(delay, 0.0f);
             np->fDelay[1]               = lsp_max(-delay, 0.0f);
+            np->fPreBalance             = pre_balance;
+            np->fPostBalance            = post_balance;
+
+            // Detect jumps
+            constexpr float rot_range   = meta::stereo_hammer_metadata::ROTATE_MAX - meta::stereo_hammer_metadata::ROTATE_MIN;
+            const float rot_delta       = rotate - op->fRotate;
+            if (fabsf(rot_delta) >= rot_range * 0.875f)
+            {
+                // Jump: low -> high
+                const float short_delta     = (rot_delta > 0.0f) ? rot_delta - rot_range : rot_delta + rot_range;
+                np->fRotate                 = rotate;
+                op->fRotate                 = rotate - short_delta;
+            }
+            else
+                np->fRotate                 = rotate;
 
             // Check that parameters have changed
-            stage_param_t * const op    = &stage->sOld;
+            bool matrix_changed         = false;
+
+            // Rotation changed?
+            if (np->fRotate != op->fRotate)
+            {
+                const float angle       = np->fRotate * TO_RADIANS;
+                np->fRotateCos          = cosf(angle);
+                np->fRotateSin          = sinf(angle);
+                matrix_changed          = true;
+            }
+
+            // Other linear parameters changed?
             if ((np->fPreGain[0] != op->fPreGain[0]) ||
                 (np->fPreGain[1] != op->fPreGain[1]) ||
                 (np->fPan[0] != op->fPan[0]) ||
                 (np->fPan[1] != op->fPan[1]) ||
-                (np->fRotate != op->fRotate) ||
                 (np->fPostGain[0] != op->fPostGain[0]) ||
-                (np->fPostGain[1] != op->fPostGain[1]))
+                (np->fPostGain[1] != op->fPostGain[1]) ||
+                (np->fPreBalance != op->fPreBalance) ||
+                (np->fPostBalance != op->fPostBalance))
             {
-                stage->bMatrixChanged       = true;
+                matrix_changed          = true;
+            }
 
+            if (matrix_changed) // TODO: update math
+            {
                 // Compute the initial matrix parameters
                 // The changes should be applied in reverse to processing order
                 //
@@ -424,49 +472,228 @@ namespace lsp
             float **ins, float **outs,
             size_t offset, size_t total, size_t samples)
         {
-            float * src_a    = ins[0];
-            float * src_b    = ins[1];
-            float * dst_a    = vChannels[0].vTemp[0];
-            float * dst_b    = vChannels[1].vTemp[0];
+            float * src_a           = ins[0];
+            float * src_b           = ins[1];
+            float * dst_a           = vChannels[0].vTemp[0];
+            float * dst_b           = vChannels[1].vTemp[0];
+            int temp                = 1;
+
+            // Function to swap buffers between vTemp[0] and vTemp[1]
+            auto swap_buffers       = [&]() {
+                src_a                   = dst_a;
+                src_b                   = dst_b;
+                dst_a                   = vChannels[0].vTemp[temp];
+                dst_b                   = vChannels[1].vTemp[temp];
+                temp                   ^= 1;
+            };
+
+            stage_param_t * const pold = &stage->sOld;
+            stage_param_t * const pnew = &stage->sNew;
 
             // Apply stereo manipulations
-//            if (stage->bMatrixChanged) // TODO
+//            if (stage->bMatrixChanged)
+            {
+                // Apply pre-gain
+                {
+                    if (pold->fPreGain[0] != pnew->fPreGain[0])
+                        dsp::lin_inter_mul3(
+                            dst_a, src_a,
+                            0.0f, pold->fPreGain[0],
+                            total, pnew->fPreGain[0],
+                            offset, samples);
+                    else
+                        dsp::mul_k3(dst_a, src_a, pnew->fPreGain[0], samples);
+
+                    if (pold->fPreGain[1] != pnew->fPreGain[1])
+                        dsp::lin_inter_mul3(
+                            dst_b, src_b,
+                            0.0f, pold->fPreGain[1],
+                            total, pnew->fPreGain[1],
+                            offset, samples);
+                    else
+                        dsp::mul_k3(dst_b, src_b, pnew->fPreGain[1], samples);
+                }
+
+                // Apply pre-panning
+                {
+                    swap_buffers();
+
+                    // Channel A
+                    if (pold->fPan[0] != pnew->fPan[0])
+                    {
+                        dsp::lin_inter_mul3(
+                            dst_a, src_a,
+                            0.0f, pold->fPan[0],
+                            total, pnew->fPan[0],
+                            offset, samples);
+                        dsp::lin_inter_mul3(
+                            dst_b, src_a,
+                            0.0f, 1.0f - pold->fPan[0],
+                            total, 1.0f - pnew->fPan[0],
+                            offset, samples);
+                    }
+                    else
+                    {
+                        dsp::mul_k3(dst_a, src_a, pnew->fPan[0], samples);
+                        dsp::mul_k3(dst_b, src_a, 1.0f - pnew->fPan[0], samples);
+                    }
+
+                    // Channel B
+                    if (pold->fPan[1] != pnew->fPan[1])
+                    {
+                        dsp::lin_inter_fmadd2(
+                            dst_a, src_b,
+                            0.0f, pold->fPan[1],
+                            total, pnew->fPan[1],
+                            offset, samples);
+                        dsp::lin_inter_fmadd2(
+                            dst_b, src_b,
+                            0.0f, 1.0f - pold->fPan[1],
+                            total, 1.0f - pnew->fPan[1],
+                            offset, samples);
+                    }
+                    else
+                    {
+                        dsp::fmadd_k3(dst_a, src_b, pnew->fPan[1], samples);
+                        dsp::fmadd_k3(dst_b, src_b, 1.0f - pnew->fPan[1], samples);
+                    }
+                }
+
+                // Apply Pre-Balancing, in-place
+                {
+                    if (pold->fPreBalance != pnew->fPreBalance)
+                    {
+                        dsp::lin_inter_mul2(
+                            dst_a,
+                            0.0f, 1.0f - pold->fPreBalance,
+                            total, 1.0f - pnew->fPreBalance,
+                            offset, samples);
+                        dsp::lin_inter_mul2(
+                            dst_b,
+                            0.0f, 1.0f + pold->fPreBalance,
+                            total, 1.0f + pnew->fPreBalance,
+                            offset, samples);
+                    }
+                    else
+                    {
+                        dsp::mul_k2(dst_a, 1.0f - pnew->fPreBalance, samples);
+                        dsp::mul_k2(dst_b, 1.0f + pnew->fPreBalance, samples);
+                    }
+                }
+
+                // Apply rotation
+                {
+                    swap_buffers();
+
+                    if (pold->fRotate != pnew->fRotate)
+                    {
+                        float * const ramp_cos  = vRamp[0];
+                        float * const ramp_sin  = vRamp[1];
+
+                        // Compute sine/cosine ramping interpolation
+                        dsp::lin_inter_set(
+                            ramp_sin,
+                            0.0f, pold->fRotate * TO_RADIANS,
+                            total, pnew->fRotate * TO_RADIANS,
+                            offset, samples);
+
+                        dsp::cosf2(ramp_cos, ramp_sin, samples);
+                        dsp::sinf1(ramp_sin, samples);
+
+                        // Apply transformation
+                        dsp::mul3(dst_a, src_a, ramp_cos, samples);
+                        dsp::fmsub3(dst_a, src_b, ramp_sin, samples);
+                        dsp::mul3(dst_b, src_a, ramp_sin, samples);
+                        dsp::fmadd3(dst_b, src_b, ramp_cos, samples);
+                    }
+                    else
+                    {
+                        dsp::mix_copy2(dst_a, src_a, src_b, pnew->fRotateCos, -pnew->fRotateSin, samples);
+                        dsp::mix_copy2(dst_b, src_a, src_b, pnew->fRotateSin, pnew->fRotateCos, samples);
+                    }
+                }
+
+                // Apply post-gain, in-place, no need to swap buffers
+                {
+                    if (pold->fPostGain[0] != pnew->fPostGain[0])
+                        dsp::lin_inter_mul2(
+                            dst_a,
+                            0.0f, pold->fPostGain[0],
+                            total, pnew->fPostGain[0],
+                            offset, samples);
+                    else
+                        dsp::mul_k2(dst_a, pnew->fPostGain[0], samples);
+
+                    if (pold->fPostGain[1] != pnew->fPostGain[1])
+                        dsp::lin_inter_mul2(
+                            dst_b,
+                            0.0f, pold->fPostGain[1],
+                            total, pnew->fPostGain[1],
+                            offset, samples);
+                    else
+                        dsp::mul_k2(dst_b, pnew->fPostGain[1], samples);
+                }
+
+                // Apply post balance, in-place, no need to swap buffers
+                {
+                    if (pold->fPostBalance != pnew->fPostBalance)
+                    {
+                        dsp::lin_inter_mul2(
+                            dst_a,
+                            0.0f, 1.0f - pold->fPostBalance,
+                            total, 1.0f - pnew->fPostBalance,
+                            offset, samples);
+                        dsp::lin_inter_mul2(
+                            dst_b,
+                            0.0f, 1.0f + pold->fPostBalance,
+                            total, 1.0f + pnew->fPostBalance,
+                            offset, samples);
+                    }
+                    else
+                    {
+                        dsp::mul_k2(dst_a, 1.0f - pnew->fPostBalance, samples);
+                        dsp::mul_k2(dst_b, 1.0f + pnew->fPostBalance, samples);
+                    }
+                }
+            }
+//            else // TODO
 //            {
+//                // Apply matrix
+//                mat2_t * const m        = &stage->sMatrix;
 //
+//                dsp::mix_copy2(dst_a,
+//                    src_a, src_b,
+//                    m->v[0][0], m->v[0][1],
+//                    samples);
+//                dsp::mix_copy2(dst_b,
+//                    src_a, src_b,
+//                    m->v[1][0], m->v[1][1],
+//                    samples);
 //            }
-//            else
-            {
-                // Apply matrix
-                mat2_t * const m        = &stage->sMatrix;
 
-                dsp::mix_copy2(dst_a,
-                    src_a, src_b,
-                    m->v[0][0], m->v[0][1],
-                    samples);
-                dsp::mix_copy2(dst_b,
-                    src_a, src_b,
-                    m->v[1][0], m->v[1][1],
-                    samples);
-            }
-
-            // Apply delay
-            if (stage->bDelayChanged)
+            // Apply delay, do in-place, no need to swap buffers
             {
-                const float k           = float(offset + total) / float(samples);
-                const float delay_a     = stage->sNew.fDelay[0] * k + stage->sOld.fDelay[0] * (1.0f - k);
-                const float delay_b     = stage->sNew.fDelay[1] * k + stage->sOld.fDelay[1] * (1.0f - k);
-                stage->sDelay[0].process_ramping(dst_a, dst_b, delay_a, samples);
-                stage->sDelay[1].process_ramping(dst_a, dst_b, delay_b, samples);
-            }
-            else
-            {
-                stage->sDelay[0].process(dst_a, dst_a, samples);
-                stage->sDelay[1].process(dst_b, dst_b, samples);
-            }
+                if (stage->bDelayChanged)
+                {
+                    const float k           = float(offset + samples) / float(total);
+                    const float delay_a     = pnew->fDelay[0] * k + pold->fDelay[0] * (1.0f - k);
+                    const float delay_b     = pnew->fDelay[1] * k + pold->fDelay[1] * (1.0f - k);
 
-            // Apply bypass
-            stage->sBypass[0].process(outs[0], ins[0], dst_a, samples);
-            stage->sBypass[1].process(outs[1], ins[1], dst_b, samples);
+                    stage->sDelay[0].process_ramping(dst_a, dst_a, delay_a, samples);
+                    stage->sDelay[1].process_ramping(dst_b, dst_b, delay_b, samples);
+                }
+                else
+                {
+                    stage->sDelay[0].set_delay(pnew->fDelay[0]);
+                    stage->sDelay[1].set_delay(pnew->fDelay[1]);
+                    stage->sDelay[0].process(dst_a, dst_a, samples);
+                    stage->sDelay[1].process(dst_b, dst_b, samples);
+                }
+
+                // Apply bypass
+                stage->sBypass[0].process(outs[0], ins[0], dst_a, samples);
+                stage->sBypass[1].process(outs[1], ins[1], dst_b, samples);
+            }
         }
 
         void stereo_hammer::process(size_t samples)
@@ -482,35 +709,27 @@ namespace lsp
                 // Process stage 1
                 ins[0]              = vChannels[0].vIn;
                 ins[1]              = vChannels[1].vIn;
-                outs[0]             = vChannels[0].vData;
-                outs[1]             = vChannels[1].vData;
+                outs[0]             = vBuffer[0];
+                outs[1]             = vBuffer[1];
                 process_stage(&sLRProc, ins, outs, offset, samples, to_do);
 
-                // Perform mid-side transform
-                ins[0]              = outs[0];
-                ins[1]              = outs[1];
-                outs[0]             = vBuffer;
-                outs[1]             = &vBuffer[BUFFER_SIZE];
+                // Perform in-place left-right -> mid-side transform
                 dsp::lr_to_ms(
                     outs[0], outs[1],
-                    ins[0], ins[1],
+                    outs[0], outs[1],
                     to_do);
 
-                // Process stage 2
+                // Process stage 2, result should be stored in another temporary buffer
                 ins[0]              = outs[0];
                 ins[1]              = outs[1];
                 outs[0]             = vChannels[0].vData;
                 outs[1]             = vChannels[1].vData;
                 process_stage(&sMSProc, ins, outs, offset, samples, to_do);
 
-                // Perform reverse mid-side transform
-                ins[0]              = outs[0];
-                ins[1]              = outs[1];
-                outs[0]             = vBuffer;
-                outs[1]             = &vBuffer[BUFFER_SIZE];
+                // Perform in-place reverse mid-side -> left-right transform
                 dsp::lr_to_ms(
                     outs[0], outs[1],
-                    ins[0], ins[1],
+                    outs[0], outs[1],
                     to_do);
 
                 // Apply bypasses
@@ -526,19 +745,19 @@ namespace lsp
             }
 
             // Reset ramping state
-            if (sLRProc.bMatrixChanged)
+            if (sLRProc.bMatrixChanged || sLRProc.bDelayChanged)
             {
                 sLRProc.sOld            = sLRProc.sNew;
                 sLRProc.bMatrixChanged  = false;
+                sLRProc.bDelayChanged   = false;
             }
-            sLRProc.bDelayChanged   = false;
 
-            if (sMSProc.bMatrixChanged)
+            if (sMSProc.bMatrixChanged || sMSProc.bDelayChanged)
             {
                 sMSProc.sOld            = sMSProc.sNew;
                 sMSProc.bMatrixChanged  = false;
+                sMSProc.bDelayChanged   = false;
             }
-            sMSProc.bDelayChanged   = false;
         }
 
         void stereo_hammer::dump(dspu::IStateDumper *v) const
@@ -562,7 +781,8 @@ namespace lsp
             }
             v->end_array();
 
-            v->write("vBuffer", vBuffer);
+            v->writev("vBuffer", vBuffer, 2);
+            v->writev("vRamp", vRamp, 2);
 
             v->write("pBypass", pBypass);
 

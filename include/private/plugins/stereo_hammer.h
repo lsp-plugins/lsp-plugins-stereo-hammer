@@ -53,7 +53,11 @@ namespace lsp
                     float               fPan[2];
                     float               fPostGain[2];
                     float               fDelay[2];
-                    float               fRotate;
+                    float               fPreBalance;        // Pre-balance
+                    float               fPostBalance;       // Post-balance
+                    float               fRotate;            // Rotation angle
+                    float               fRotateCos;         // Cosine of the rotation angle
+                    float               fRotateSin;         // Sine of the rotation angle
                 } stage_param_t;
 
                 typedef struct stage_t
@@ -72,10 +76,11 @@ namespace lsp
                     plug::IPort        *pPreGain[2];
                     plug::IPort        *pPreInvert[2];
                     plug::IPort        *pPan[2];
-                    plug::IPort        *pBalance;
+                    plug::IPort        *pPreBalance;
                     plug::IPort        *pRotate;
                     plug::IPort        *pPostGain[2];
                     plug::IPort        *pPostInvert[2];
+                    plug::IPort        *pPostBalance;
                     plug::IPort        *pDelayShift;
                 } stage_t;
 
@@ -110,7 +115,8 @@ namespace lsp
                 dspu::Panometer     sPanometer;         // Panometer
                 dspu::Panometer     sMsBalance;         // Mid/Side balance
 
-                float              *vBuffer;            // Temporary buffer for audio processing
+                float              *vBuffer[2];         // Temporary buffer for audio processing
+                float              *vRamp[2];           // Ramping buffer
 
                 plug::IPort        *pBypass;            // Bypass
                 plug::IPort        *pGainOut;           // Output gain
