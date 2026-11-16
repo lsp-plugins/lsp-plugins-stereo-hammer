@@ -33,6 +33,8 @@ namespace lsp
     {
         typedef struct stereo_hammer_metadata
         {
+            static constexpr size_t GONIO_REFRESH_RATE          = 20;
+
             static constexpr float  DELAY_SHIFT_MIN             = -50.0f;               // Min delay shift between channels
             static constexpr float  DELAY_SHIFT_MAX             = 50.0f;                // Max delay shift between channels
             static constexpr float  DELAY_SHIFT_DFL             = 0.0f;                 // Default delay shift between channels
@@ -43,10 +45,15 @@ namespace lsp
             static constexpr float  ROTATE_DFL                  = 0.0f;                 // Default channel rotation
             static constexpr float  ROTATE_STEP                 = 0.25f;                // Channel rotation step
 
-            static constexpr float  GONIO_DOTS_MAX              = 8192.0f;              // Maximum dots in goniometer
             static constexpr float  GONIO_DOTS_MIN              = 512.0f;               // Minimum dots in goniometer
+            static constexpr float  GONIO_DOTS_MAX              = 8192.0f;              // Maximum dots in goniometer
             static constexpr float  GONIO_DOTS_DFL              = 2048.0f;              // Default number of dots in goniometer
             static constexpr float  GONIO_DOTS_STEP             = 0.01f;                // Configuration step
+
+            static constexpr float  GONIO_SCALE_MIN             = -36;                  // Maximum goniometer scale
+            static constexpr float  GONIO_SCALE_MAX             = 36;                   // Minimum goniometer scale
+            static constexpr float  GONIO_SCALE_DFL             = 0;                    // Default goniometer scale
+            static constexpr float  GONIO_SCALE_STEP            = 0.05f;                // Goniometer scale step
 
             static constexpr size_t GONIO_HISTORY_MAX           = 10;                   // Maximum history for goniometer
             static constexpr size_t GONIO_HISTORY_MIN           = 0;                    // Minimum history for goniometer

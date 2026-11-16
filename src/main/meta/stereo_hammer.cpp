@@ -108,7 +108,10 @@ namespace lsp
             // Metering
             CONTROL("goniohs", "Goniometer strobe history size", "Gonio history", U_NONE, stereo_hammer_metadata::GONIO_HISTORY), \
             LOG_CONTROL("goniond", "Maximum dots for plotting goniometer", "Max dots", U_NONE, stereo_hammer_metadata::GONIO_DOTS), \
-            STREAM("gonio", "Goniometer stream buffer", 3, 128, 0x8000), \
+            SWITCH("gon_in", "Show input goniometer", "Gonio In", 1), \
+            SWITCH("gon_out", "Show output goniometer", "Gonio Out", 1), \
+            CONTROL("zoom", "Zoom", "Gonio Zoom", U_DB, stereo_hammer_metadata::GONIO_SCALE), \
+            STREAM("gon", "Goniometer stream buffer", 5, 128, 0x8000), \
             METER("corrm", "Correlation meter", U_NONE, stereo_hammer_metadata::CORRELATION), \
             METER("panm", "Panorama meter", U_NONE, stereo_hammer_metadata::PANOMETER), \
             METER("msbm", "Mid/Side balance meter", U_NONE, stereo_hammer_metadata::PANOMETER), \

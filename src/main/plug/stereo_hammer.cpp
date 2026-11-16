@@ -80,15 +80,34 @@ namespace lsp
             construct_stage(&sMSProc);
 
             // Initialize other parameters
-            vBuffer[0]      = NULL;
-            vBuffer[1]      = NULL;
-            vRamp[0]        = NULL;
-            vRamp[1]        = NULL;
+            vBuffer[0]          = NULL;
+            vBuffer[1]          = NULL;
+            vRamp[0]            = NULL;
+            vRamp[1]            = NULL;
 
-            pBypass         = NULL;
-            pGainOut        = NULL;
+            sOldParam.fGainOut  = GAIN_AMP_0_DB;
+            sNewParam.fGainOut  = GAIN_AMP_0_DB;
+            nGonioStrobe        = 0;
+            nGonioPeriod        = 0;
+            fGonioScale         = GAIN_AMP_0_DB;
 
-            pData           = NULL;
+            pBypass             = NULL;
+            pGainOut            = NULL;
+
+            pGonioScale         = NULL;
+            pGoniometer         = NULL;
+            pCorrelation        = NULL;
+            pPanorama           = NULL;
+            pMSBalance          = NULL;
+            pPeak               = NULL;
+            pTruePeak           = NULL;
+            pRMS                = NULL;
+            pMLufs              = NULL;
+            pSLufs              = NULL;
+            pLLufs              = NULL;
+            pILufs              = NULL;
+
+            pData               = NULL;
         }
 
         void stereo_hammer::construct_stage(stage_t *stage)
@@ -206,8 +225,11 @@ namespace lsp
             // Bind metering ports
             lsp_trace("Binding Metering ports");
 
-            BIND_PORT(pGonioDots);
-            BIND_PORT(pGonioHistory);
+            SKIP_PORT("Goniometer history size");
+            SKIP_PORT("Goniometer dots");
+            SKIP_PORT("Show input goniometer");
+            SKIP_PORT("Show output goniometer");
+            BIND_PORT(pGonioScale);
             BIND_PORT(pGoniometer);
             BIND_PORT(pCorrelation);
             BIND_PORT(pPanorama);
@@ -370,6 +392,10 @@ namespace lsp
 
             update_stage_settings(&sLRProc);
             update_stage_settings(&sMSProc);
+
+            // Update goniometer settings
+            nGonioPeriod        = dspu::hz_to_samples(fSampleRate, meta::stereo_hammer_metadata::GONIO_REFRESH_RATE);
+            fGonioScale         = dspu::db_to_gain(pGonioScale->value());
         }
 
         void stereo_hammer::bind_buffers()
@@ -647,6 +673,65 @@ namespace lsp
             sMSProc.pMeasureLvl[1]->set_value(sMSProc.vMeasure[1]);
         }
 
+        void stereo_hammer::process_goniometer(float **ins, float **outs, size_t samples)
+        {
+            // Check that stream is present
+            if (pGoniometer == NULL)
+                return;
+            plug::stream_t * const stream   = pGoniometer->buffer<plug::stream_t>();
+            if (stream == NULL)
+                return;
+
+            float *const mid                = vBuffer[0];
+            float *const side               = vBuffer[1];
+
+            for (size_t offset=0; offset < samples; )
+            {
+                const size_t count  = stream->add_frame(samples - offset);     // Add a frame
+
+                // Form the strobe signal
+                dsp::fill_zero(mid, count);
+
+                for (size_t i=0; i < count; )
+                {
+                    if (nGonioStrobe == 0)
+                    {
+                        mid[i]                  = 1.0f;
+                        nGonioStrobe            = nGonioPeriod;
+                    }
+
+                    const size_t advance    = lsp_min(count - i, nGonioStrobe);
+                    nGonioStrobe           -= advance;
+                    i                      += advance;
+                }
+                stream->write_frame(0, mid, 0, count);
+
+                // Perform analysis of the input signal
+                dsp::lr_to_ms(mid, side, &ins[0][offset], &ins[1][offset], count);
+                if (fGonioScale != GAIN_AMP_0_DB)
+                {
+                    dsp::mul_k2(mid, fGonioScale, count);
+                    dsp::mul_k2(side, fGonioScale, count);
+                }
+                stream->write_frame(1, side, 0, count);
+                stream->write_frame(2, mid, 0, count);
+
+                // Perform analysis of the output signal
+                dsp::lr_to_ms(mid, side, &outs[0][offset], &outs[1][offset], count);
+                if (fGonioScale != GAIN_AMP_0_DB)
+                {
+                    dsp::mul_k2(mid, fGonioScale, count);
+                    dsp::mul_k2(side, fGonioScale, count);
+                }
+                stream->write_frame(3, side, 0, count);
+                stream->write_frame(4, mid, 0, count);
+
+                // Commit frame
+                stream->commit_frame();
+                offset         += count;
+            }
+        }
+
         void stereo_hammer::process(size_t samples)
         {
             bind_buffers();
@@ -679,10 +764,37 @@ namespace lsp
                 process_stage(&sMSProc, ins, outs, offset, samples, to_do);
 
                 // Perform in-place reverse mid-side -> left-right transform
-                dsp::lr_to_ms(
+                dsp::ms_to_lr(
                     outs[0], outs[1],
                     outs[0], outs[1],
                     to_do);
+
+                // Apply output gain
+                {
+                    if (sOldParam.fGainOut != sNewParam.fGainOut)
+                    {
+                        dsp::lin_inter_mul2(
+                            outs[0],
+                            0.0f, sOldParam.fGainOut,
+                            samples, sNewParam.fGainOut,
+                            offset, samples);
+                        dsp::lin_inter_mul2(
+                            outs[1],
+                            0.0f, sOldParam.fGainOut,
+                            samples, sNewParam.fGainOut,
+                            offset, samples);
+                    }
+                    else
+                    {
+                        dsp::mul_k2(outs[0], sNewParam.fGainOut, to_do);
+                        dsp::mul_k2(outs[1], sNewParam.fGainOut, to_do);
+                    }
+                }
+
+                // Apply goniometer
+                ins[0]              = vChannels[0].vIn;
+                ins[1]              = vChannels[1].vIn;
+                process_goniometer(ins, outs, to_do);
 
                 // Apply bypasses
                 for (size_t i=0; i<2; ++i)
@@ -699,6 +811,7 @@ namespace lsp
             // Commit new state of stereo processors
             sLRProc.sOld            = sLRProc.sNew;
             sMSProc.sOld            = sMSProc.sNew;
+            sOldParam               = sNewParam;
 
             // Output meters and graphs
             output_meters();

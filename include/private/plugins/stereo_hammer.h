@@ -66,6 +66,11 @@ namespace lsp
                     float               fRotateSin;         // Sine of the rotation angle
                 } stage_param_t;
 
+                typedef struct global_param_t
+                {
+                    float               fGainOut;           // Output gain
+                } global_param_t;
+
                 typedef struct stage_t
                 {
                     dspu::Delay         sDelay[2];
@@ -125,11 +130,16 @@ namespace lsp
                 float              *vBuffer[2];         // Temporary buffer for audio processing
                 float              *vRamp[2];           // Ramping buffer
 
+                global_param_t      sOldParam;          // Old parameters
+                global_param_t      sNewParam;          // New parameters
+                uint32_t            nGonioStrobe;       // Counter for strobe signal of goniometer
+                uint32_t            nGonioPeriod;       // Goniometer period
+                float               fGonioScale;        // Goniometer scale
+
                 plug::IPort        *pBypass;            // Bypass
                 plug::IPort        *pGainOut;           // Output gain
 
-                plug::IPort        *pGonioDots;         // Goniometer dots
-                plug::IPort        *pGonioHistory;      // Goniometer history
+                plug::IPort        *pGonioScale;        // Goniometer scaling
                 plug::IPort        *pGoniometer;        // Goniometer data
                 plug::IPort        *pCorrelation;       // Correlometer output
                 plug::IPort        *pPanorama;          // Panometer output
@@ -162,6 +172,7 @@ namespace lsp
                                         stage_t *stage,
                                         float **ins, float **outs,
                                         size_t offset, size_t total, size_t samples);
+                void                process_goniometer(float **ins, float **outs, size_t samples);
 
             public:
                 explicit stereo_hammer(const meta::plugin_t *meta);
