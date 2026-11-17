@@ -217,93 +217,153 @@
 
 		<!-- Column 2 -->		
 		<cell rows="2">
-			<group text="groups.analysis">
-				<vbox>
-					<!-- Goniometer with it's settings -->
-					<grid rows="2" cols="2">
-						<graph width.min="256" height.min="256" expand="true" fill="true" border.size="1" border.color="bg_light">
-							<!-- Origin -->
-							<origin halign="0.0" valign="0.0" visible="false"/>
+			<vbox>
+				<group text="groups.analysis">
+					<vbox>
+						<!-- Goniometer with it's settings -->
+						<grid rows="2" cols="2">
+							<graph width.min="256" height.min="256" expand="true" fill="true" border.size="1" border.color="bg_light">
+								<!-- Origin -->
+								<origin halign="0.0" valign="0.0" visible="false"/>
+		
+								<marker v="0" dy=":_a_width" dx="+:_a_height" color="graph_alt_1" smooth="true"/>
+								<marker v="0" dy=":_a_width" dx="-:_a_height" color="graph_alt_1" smooth="true"/>
+		
+								<!-- Secondary color -->
+								<marker v="1" ox="1" oy="0" color="graph_sec"/>
+								<marker v="0.5" ox="1" oy="0" color="graph_sec"/>
+								<marker v="-0.5" ox="1" oy="0" color="graph_sec"/>
+								<marker v="-1" ox="1" oy="0" color="graph_sec"/>
+								<marker v="1" ox="0" oy="1" color="graph_sec"/>
+								<marker v="0.5" ox="0" oy="1" color="graph_sec"/>
+								<marker v="-0.5" ox="0" oy="1" color="graph_sec"/>
+								<marker v="-1" ox="0" oy="1" color="graph_sec"/>
+		
+								<!-- Streams -->
+								<stream id="gon" si="0" xi="1" yi="2" width="2" color="reference_ref_1" smooth="true" strobe="true" strobes=":goniohs" dots.max=":goniond" visibility=":gon_in" />
+								<stream id="gon" si="0" xi="3" yi="4" width="2" color="reference_mix_1" smooth="true" strobe="true" strobes=":goniohs" dots.max=":goniond" visibility=":gon_out"/>
+		
+								<!-- Axes -->
+								<axis min="-1.125" max="1.125" color="graph_prim" angle="1.0" log="false"/>
+								<axis min="-1.125" max="1.125" color="graph_prim" angle="0.5" log="false"/>
+		
+								<!-- Text -->
+								<text x="1" y="1" text="labels.chan.left" halign="1" valign="-1" pgroup="0" priority="0"/>
+								<text x="-1" y="1" text="labels.chan.right" halign="-1" valign="-1" pgroup="0" priority="0"/>
+		
+								<ui:with y="0" halign="1" valign="-1">
+									<text x="-1.125" text="labels.chan.side" pgroup="0" priority="0"/>
+									<text x="-1" text="1" pgroup="0" priority="10"/>
+									<text x="-0.5" text="0.5"/>
+									<text x="0.5" text="-0.5"/>
+									<text x="1" text="-1" halign="-1"/>
+								</ui:with>
+		
+								<ui:with x="0" halign="1" valign="-1">
+									<text y="1.125" text="labels.chan.mid" valign="1" pgroup="0" priority="0"/>
+									<text y="1" text="1" pgroup="0" priority="10"/>
+									<text y="0.5" text="0.5"/>
+									<text y="0" text="0"/>
+									<text y="-0.5" text="-0.5"/>
+									<text y="-1" text="-1"/>
+								</ui:with>
+							</graph>
+							<vbox>
+								<label
+									font.name="lsp-icons" font.size="12" font.antialias="true"
+									text="icons.main.zoom" color="text_icon"
+									pad.b="4" pad.t="4" />
+								<fader id="zoom" angle="1" vexpand="true" bg.inherit="true" flat="true" />
+								<value id="zoom" width="40" />
+							</vbox>
 	
-							<marker v="0" dy=":_a_width" dx="+:_a_height" color="graph_alt_1" smooth="true"/>
-							<marker v="0" dy=":_a_width" dx="-:_a_height" color="graph_alt_1" smooth="true"/>
-	
-							<!-- Secondary color -->
-							<marker v="1" ox="1" oy="0" color="graph_sec"/>
-							<marker v="0.5" ox="1" oy="0" color="graph_sec"/>
-							<marker v="-0.5" ox="1" oy="0" color="graph_sec"/>
-							<marker v="-1" ox="1" oy="0" color="graph_sec"/>
-							<marker v="1" ox="0" oy="1" color="graph_sec"/>
-							<marker v="0.5" ox="0" oy="1" color="graph_sec"/>
-							<marker v="-0.5" ox="0" oy="1" color="graph_sec"/>
-							<marker v="-1" ox="0" oy="1" color="graph_sec"/>
-	
-							<!-- Streams -->
-							<stream id="gon" si="0" xi="1" yi="2" width="2" color="reference_ref_1" smooth="true" strobe="true" strobes=":goniohs" dots.max=":goniond" visibility=":gon_in" />
-							<stream id="gon" si="0" xi="3" yi="4" width="2" color="reference_mix_1" smooth="true" strobe="true" strobes=":goniohs" dots.max=":goniond" visibility=":gon_out"/>
-	
-							<!-- Axes -->
-							<axis min="-1.125" max="1.125" color="graph_prim" angle="1.0" log="false"/>
-							<axis min="-1.125" max="1.125" color="graph_prim" angle="0.5" log="false"/>
-	
-							<!-- Text -->
-							<text x="1" y="1" text="labels.chan.left" halign="1" valign="-1" pgroup="0" priority="0"/>
-							<text x="-1" y="1" text="labels.chan.right" halign="-1" valign="-1" pgroup="0" priority="0"/>
-	
-							<ui:with y="0" halign="1" valign="-1">
-								<text x="-1.125" text="labels.chan.side" pgroup="0" priority="0"/>
-								<text x="-1" text="1" pgroup="0" priority="10"/>
-								<text x="-0.5" text="0.5"/>
-								<text x="0.5" text="-0.5"/>
-								<text x="1" text="-1" halign="-1"/>
-							</ui:with>
-	
-							<ui:with x="0" halign="1" valign="-1">
-								<text y="1.125" text="labels.chan.mid" valign="1" pgroup="0" priority="0"/>
-								<text y="1" text="1" pgroup="0" priority="10"/>
-								<text y="0.5" text="0.5"/>
-								<text y="0" text="0"/>
-								<text y="-0.5" text="-0.5"/>
-								<text y="-1" text="-1"/>
-							</ui:with>
-						</graph>
-						<vbox>
-							<label
-								font.name="lsp-icons" font.size="12" font.antialias="true"
-								text="icons.main.zoom" color="text_icon"
-								pad.b="4" pad.t="4" />
-							<fader id="zoom" angle="1" vexpand="true" bg.inherit="true" flat="true" />
-							<value id="zoom" width="40" />
-						</vbox>
-
+							<cell cols="2">
+								<hbox>
+									<button id="gon_in" text="labels.chan.in" color="reference_ref_1" />
+									<button id="gon_out" text="labels.chan.out" color="reference_mix_1" />
+									
+									<void hexpand="true" />
+									
+									<vbox vreduce="true" pad.b="2" width="120">
+										<hbox pad.h="2">
+											<label text="labels.history"/>
+											<void hexpand="true"/>
+											<value id="goniohs" sline="true"/>
+										</hbox>
+										<fader id="goniohs" angle="0" hfill="true" pad="0"/>
+									</vbox>
+									<vbox vreduce="true" pad.b="2" width="120">
+										<hbox pad.h="2">
+											<label text="labels.oscilloscope.max_dots"/>
+											<void hexpand="true"/>
+											<value id="goniond" sline="true"/>
+										</hbox>
+										<fader id="goniond" angle="0" hfill="true"/>
+									</vbox>
+								</hbox>
+							</cell>
+						</grid>
+					</vbox>
+				</group>
+				<group text="groups.metering">
+					<grid rows="3" cols="2">
+						<!-- Row 1 -->
 						<cell cols="2">
-							<hbox>
-								<button id="gon_in" text="labels.chan.in" color="reference_ref_1" />
-								<button id="gon_out" text="labels.chan.out" color="reference_mix_1" />
-								
-								<void hexpand="true" />
-								
-								<vbox vreduce="true" pad.b="2" width="120">
-									<hbox pad.h="2">
-										<label text="labels.history"/>
-										<void hexpand="true"/>
-										<value id="goniohs" sline="true"/>
-									</hbox>
-									<fader id="goniohs" angle="0" hfill="true" pad="0"/>
-								</vbox>
-								<vbox vreduce="true" pad.b="2" width="120">
-									<hbox pad.h="2">
-										<label text="labels.oscilloscope.max_dots"/>
-										<void hexpand="true"/>
-										<value id="goniond" sline="true"/>
-									</hbox>
-									<fader id="goniond" angle="0" hfill="true"/>
-								</vbox>
-							</hbox>
+							<label text="labels.chan.correlation" />
 						</cell>
+						
+						<!-- Row 2: input correlometer -->
+						<label text="labels.chan.in" />
+						<hbox hexpand="true">
+							<label text="-1" font.size="8" hfill="true" text.halign="-1" pad.t="2" pad.r="1"/>
+							<ledchannel
+								id="in_cm"
+								width.min="13"
+								width.max="13"
+								min="-100"
+								max="100"
+								balance="0"
+								balance.visibility="true"
+								log="false"
+								type="peak"
+								text.visibility="false"
+								hexpand="true"
+								bg.color="bg_schema"
+								balance.color="bright_cyan"
+								value.color="cyan"
+								inactive.brightness="1.0"
+								inactive.bg.brightness="1.0"
+								inactive.bg.color="bg_schema" />
+							<label text="+1" font.size="8" hfill="true" text.halign="1" pad.t="2"/>
+						</hbox>
+						
+						<!-- Row 3: output correlometer -->
+						<label text="labels.chan.out" />
+						<hbox hexpand="true">
+							<label text="-1" font.size="8" hfill="true" text.halign="-1" pad.t="2" pad.r="1"/>
+							<ledchannel
+								id="out_cm"
+								width.min="13"
+								width.max="13"
+								min="-100"
+								max="100"
+								balance="0"
+								balance.visibility="true"
+								log="false"
+								type="peak"
+								text.visibility="false"
+								hexpand="true"
+								bg.color="bg_schema"
+								balance.color="bright_cyan"
+								value.color="cyan"
+								inactive.brightness="1.0"
+								inactive.bg.brightness="1.0"
+								inactive.bg.color="bg_schema" />
+							<label text="+1" font.size="8" hfill="true" text.halign="1" pad.t="2"/>
+						</hbox>
 					</grid>
-				</vbox>
-			</group>
+				</group>
+			</vbox>
 		</cell>
 	</grid>
 </plugin>

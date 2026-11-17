@@ -34,6 +34,7 @@ namespace lsp
         typedef struct stereo_hammer_metadata
         {
             static constexpr size_t GONIO_REFRESH_RATE          = 20;
+            static constexpr float  CORR_PERIOD                 = 100.0f;
 
             static constexpr float  DELAY_SHIFT_MIN             = -50.0f;               // Min delay shift between channels
             static constexpr float  DELAY_SHIFT_MAX             = 50.0f;                // Max delay shift between channels
@@ -60,8 +61,8 @@ namespace lsp
             static constexpr size_t GONIO_HISTORY_DFL           = 5;                    // Default history for goniometer
             static constexpr size_t GONIO_HISTORY_STEP          = 1;                    // Step for goniometer
 
-            static constexpr float  CORRELATION_MIN             = -1.0f;                // Minimum correlation value
-            static constexpr float  CORRELATION_MAX             = 1.0f;                 // Maximum correlation value
+            static constexpr float  CORRELATION_MIN             = -100.0f;              // Minimum correlation value
+            static constexpr float  CORRELATION_MAX             = 100.0f;               // Maximum correlation value
             static constexpr float  CORRELATION_DFL             = 0.0f;                 // Default correlation value
             static constexpr float  CORRELATION_STEP            = 0.001f;               // Correlation step
 

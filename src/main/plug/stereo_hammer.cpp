@@ -90,13 +90,16 @@ namespace lsp
             nGonioStrobe        = 0;
             nGonioPeriod        = 0;
             fGonioScale         = GAIN_AMP_0_DB;
+            fCorrIn             = 0.0f;
+            fCorrOut            = 0.0f;
 
             pBypass             = NULL;
             pGainOut            = NULL;
 
             pGonioScale         = NULL;
             pGoniometer         = NULL;
-            pCorrelation        = NULL;
+            pCorrIn             = NULL;
+            pCorrOut            = NULL;
             pPanorama           = NULL;
             pMSBalance          = NULL;
             pPeak               = NULL;
@@ -231,7 +234,8 @@ namespace lsp
             SKIP_PORT("Show output goniometer");
             BIND_PORT(pGonioScale);
             BIND_PORT(pGoniometer);
-            BIND_PORT(pCorrelation);
+            BIND_PORT(pCorrIn);
+            BIND_PORT(pCorrOut);
             BIND_PORT(pPanorama);
             BIND_PORT(pMSBalance);
             BIND_PORT(pPeak);
@@ -308,6 +312,16 @@ namespace lsp
         void stereo_hammer::update_sample_rate(long sr)
         {
             const size_t max_delay      = dspu::millis_to_samples(sr, meta::stereo_hammer_metadata::DELAY_SHIFT_MAX);
+            const size_t corr_period    = dspu::millis_to_samples(sr, meta::stereo_hammer_metadata::CORR_PERIOD);
+
+            // Configure correlometers
+            sInCorr.init(corr_period);
+            sInCorr.set_period(corr_period);
+            sInCorr.clear();
+
+            sOutCorr.init(corr_period);
+            sOutCorr.set_period(corr_period);
+            sOutCorr.clear();
 
             // Update sample rate for the bypass processors
             for (size_t i=0; i<2; ++i)
@@ -662,6 +676,9 @@ namespace lsp
 
             sMSProc.vMeasure[0]     = GAIN_AMP_M_INF_DB;
             sMSProc.vMeasure[1]     = GAIN_AMP_M_INF_DB;
+
+            fCorrIn                 = 0.0f;
+            fCorrOut                = 0.0f;
         }
 
         void stereo_hammer::output_meters()
@@ -671,6 +688,9 @@ namespace lsp
 
             sMSProc.pMeasureLvl[0]->set_value(sMSProc.vMeasure[0]);
             sMSProc.pMeasureLvl[1]->set_value(sMSProc.vMeasure[1]);
+
+            pCorrIn->set_value(fCorrIn * 100.0f);
+            pCorrOut->set_value(fCorrOut * 100.0f);
         }
 
         void stereo_hammer::process_goniometer(float **ins, float **outs, size_t samples)
@@ -732,6 +752,17 @@ namespace lsp
             }
         }
 
+        float stereo_hammer::update_correlation(float value, dspu::Correlometer & corr, const float *a, const float *b, size_t samples)
+        {
+            float c_min             = 0.0f;
+            float c_max             = 0.0f;
+            corr.process(vBuffer[0], a, b, samples);
+            dsp::minmax(vBuffer[0], samples, &c_min, &c_max);
+            c_max                   = (fabs(c_min) > fabs(c_max)) ? c_min : c_max;
+
+            return (fabs(value) < fabs(c_max)) ? c_max : value;
+        }
+
         void stereo_hammer::process(size_t samples)
         {
             bind_buffers();
@@ -743,9 +774,13 @@ namespace lsp
             {
                 const size_t to_do  = lsp_min(samples - offset, BUFFER_SIZE);
 
-                // Process stage 1
                 ins[0]              = vChannels[0].vIn;
                 ins[1]              = vChannels[1].vIn;
+
+                // Measure correlation of input signal
+                fCorrIn             = update_correlation(fCorrIn, sInCorr, ins[0], ins[1], to_do);
+
+                // Process stage 1
                 outs[0]             = vBuffer[0];
                 outs[1]             = vBuffer[1];
                 process_stage(&sLRProc, ins, outs, offset, samples, to_do);
@@ -791,10 +826,11 @@ namespace lsp
                     }
                 }
 
-                // Apply goniometer
+                // Apply goniometer and correlometer
                 ins[0]              = vChannels[0].vIn;
                 ins[1]              = vChannels[1].vIn;
                 process_goniometer(ins, outs, to_do);
+                fCorrOut            = update_correlation(fCorrOut, sOutCorr, outs[0], outs[1], to_do);
 
                 // Apply bypasses
                 for (size_t i=0; i<2; ++i)

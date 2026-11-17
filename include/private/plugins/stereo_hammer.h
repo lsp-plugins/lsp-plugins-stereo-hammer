@@ -22,6 +22,7 @@
 #ifndef PRIVATE_PLUGINS_STEREO_HAMMER_H_
 #define PRIVATE_PLUGINS_STEREO_HAMMER_H_
 
+#include <lsp-plug.in/dsp-units/meters/Correlometer.h>
 #include <lsp-plug.in/dsp-units/meters/ILUFSMeter.h>
 #include <lsp-plug.in/dsp-units/meters/LoudnessMeter.h>
 #include <lsp-plug.in/dsp-units/meters/Panometer.h>
@@ -124,6 +125,8 @@ namespace lsp
                 dspu::LoudnessMeter sSLUFSMeter;        // Short-term LUFS meter
                 dspu::ILUFSMeter    sLLUFSMeter;        // Long-term LUFS meter
                 dspu::ILUFSMeter    sILUFSMeter;        // Integrated loudness meter for an infinite period
+                dspu::Correlometer  sInCorr;            // Input correlometer
+                dspu::Correlometer  sOutCorr;           // Output correlometer
                 dspu::Panometer     sPanometer;         // Panometer
                 dspu::Panometer     sMsBalance;         // Mid/Side balance
 
@@ -135,13 +138,16 @@ namespace lsp
                 uint32_t            nGonioStrobe;       // Counter for strobe signal of goniometer
                 uint32_t            nGonioPeriod;       // Goniometer period
                 float               fGonioScale;        // Goniometer scale
+                float               fCorrIn;            // Input correlation
+                float               fCorrOut;           // Output correlation
 
                 plug::IPort        *pBypass;            // Bypass
                 plug::IPort        *pGainOut;           // Output gain
 
                 plug::IPort        *pGonioScale;        // Goniometer scaling
                 plug::IPort        *pGoniometer;        // Goniometer data
-                plug::IPort        *pCorrelation;       // Correlometer output
+                plug::IPort        *pCorrIn;            // Input correlation meter
+                plug::IPort        *pCorrOut;           // Output correlation meter
                 plug::IPort        *pPanorama;          // Panometer output
                 plug::IPort        *pMSBalance;         // Mid/Side balance output
                 plug::IPort        *pPeak;              // Peak meter outputs
@@ -173,6 +179,7 @@ namespace lsp
                                         float **ins, float **outs,
                                         size_t offset, size_t total, size_t samples);
                 void                process_goniometer(float **ins, float **outs, size_t samples);
+                float               update_correlation(float value, dspu::Correlometer & corr, const float *a, const float *b, size_t samples);
 
             public:
                 explicit stereo_hammer(const meta::plugin_t *meta);
