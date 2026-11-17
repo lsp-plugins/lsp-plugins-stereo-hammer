@@ -28,8 +28,9 @@
 #include <lsp-plug.in/dsp-units/meters/Panometer.h>
 #include <lsp-plug.in/dsp-units/meters/PeakMeter.h>
 #include <lsp-plug.in/dsp-units/meters/TruePeakMeter.h>
-#include <lsp-plug.in/dsp-units/util/Delay.h>
 #include <lsp-plug.in/dsp-units/ctl/Bypass.h>
+#include <lsp-plug.in/dsp-units/misc/sigmoid.h>
+#include <lsp-plug.in/dsp-units/util/Delay.h>
 #include <lsp-plug.in/plug-fw/plug.h>
 #include <private/meta/stereo_hammer.h>
 
@@ -54,6 +55,21 @@ namespace lsp
                     M_DELAY,
                 };
 
+                typedef struct clipper_t
+                {
+                    dspu::sigmoid::function_t   hFunc;      // Sigmoid function
+                    float                       fThresh;    // Threshold
+                    float                       fScaling;   // Scaling factor
+                    float                       fGainOld;   // Gain old
+                    float                       fGainNew;   // Gain new
+                    float                       fLevel[2];  // Maximum input gain level
+
+                    plug::IPort                *pGain;      // Gain port
+                    plug::IPort                *pFunc;      // Function port
+                    plug::IPort                *pKnee;      // Knee port
+                    plug::IPort                *pClip[2];   // Clipping meters
+                } clipper_t;
+
                 typedef struct stage_param_t
                 {
                     float               fPreGain[2];
@@ -66,11 +82,6 @@ namespace lsp
                     float               fRotateCos;         // Cosine of the rotation angle
                     float               fRotateSin;         // Sine of the rotation angle
                 } stage_param_t;
-
-                typedef struct global_param_t
-                {
-                    float               fGainOut;           // Output gain
-                } global_param_t;
 
                 typedef struct stage_t
                 {
@@ -118,7 +129,12 @@ namespace lsp
                 } channel_t;
 
             protected:
+                static dspu::sigmoid::function_t    vSigmoidFunctions[];
+
+            protected:
                 channel_t           vChannels[2];       // Audio channels
+                clipper_t           sInClip;            // Input clipper
+                clipper_t           sOutClip;           // Output clipper
                 stage_t             sLRProc;            // Left/Right processing stage
                 stage_t             sMSProc;            // Mid/Side processing stage
                 dspu::LoudnessMeter sMLUFSMeter;        // Momentary LUFS meter
@@ -133,8 +149,6 @@ namespace lsp
                 float              *vBuffer[2];         // Temporary buffer for audio processing
                 float              *vRamp[2];           // Ramping buffer
 
-                global_param_t      sOldParam;          // Old parameters
-                global_param_t      sNewParam;          // New parameters
                 uint32_t            nGonioStrobe;       // Counter for strobe signal of goniometer
                 uint32_t            nGonioPeriod;       // Goniometer period
                 float               fGonioScale;        // Goniometer scale
@@ -142,7 +156,6 @@ namespace lsp
                 float               fCorrOut;           // Output correlation
 
                 plug::IPort        *pBypass;            // Bypass
-                plug::IPort        *pGainOut;           // Output gain
 
                 plug::IPort        *pGonioScale;        // Goniometer scaling
                 plug::IPort        *pGoniometer;        // Goniometer data
@@ -166,11 +179,16 @@ namespace lsp
                 static void         bind_stage(stage_t *stage, size_t & port_id, plug::IPort **ports);
                 static void         init_stage(stage_t *stage);
                 static void         measure_levels(stage_t *stage, const float *a, const float *b, measure_t measure, size_t samples);
+                static void         construct_clipper(clipper_t *clip);
+                static void         bind_clipper(clipper_t *clip, size_t & port_id, plug::IPort **ports);
+                static void         clip_channel(clipper_t *clip, float *out, const float *in, size_t samples);
+                static float        clip_reduction(clipper_t *clip, float sample);
 
             protected:
                 void                reset_meters();
                 void                output_meters();
                 void                update_stage_settings(stage_t *stage);
+                void                update_clip_settings(clipper_t *clip);
                 void                do_destroy();
                 void                bind_buffers();
                 void                advance_buffers(size_t samples);
@@ -179,6 +197,7 @@ namespace lsp
                                         float **ins, float **outs,
                                         size_t offset, size_t total, size_t samples);
                 void                process_goniometer(float **ins, float **outs, size_t samples);
+                bool                process_clipper(clipper_t *clip, float **ins, float **outs, size_t offset, size_t total, size_t samples);
                 float               update_correlation(float value, dspu::Correlometer & corr, const float *a, const float *b, size_t samples);
 
             public:

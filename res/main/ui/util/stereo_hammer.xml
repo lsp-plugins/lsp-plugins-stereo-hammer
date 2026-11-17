@@ -1,6 +1,28 @@
 <plugin resizable="true">
-	<grid rows="2" cols="2" spacing="4" transpose="true">
+	<grid rows="4" cols="2" spacing="4" transpose="true">
 		<!-- Column 1 -->
+		<group text="groups.input">
+			<grid rows="3" cols="3">
+				<!-- Row 1 -->
+				<label text="labels.gain" />
+				<label text="labels.signal.clipping" />
+				<label text="labels.knee" />
+				
+				<!-- Row 2 -->
+				<knob id="g_in" />
+				<combo id="in_cf" />
+				<knob id="in_kn" />
+				
+				<!-- Row 3 -->
+				<value id="g_in" />
+				<ledmeter hexpand="true" height.min="256" angle="0">
+					<ledchannel id="in_cml" min="-36 db" max="0 db" log="true" type="peak" balance="0 db" balance.visibility="true" value.color="blue"/>
+					<ledchannel id="in_cmr" min="-36 db" max="0 db" log="true" type="peak" balance="0 db" balance.visibility="true" value.color="blue"/>
+				</ledmeter>
+				<value id="in_kn" />
+			</grid>
+		</group>
+		
 		<group text="groups.stereo_adjust">
 			<vbox>
 				<hbox>
@@ -214,15 +236,37 @@
 				</grid>
 			</vbox>
 		</group>
+		
+		<group text="groups.output">
+			<grid rows="3" cols="3">
+				<!-- Row 1 -->
+				<label text="labels.gain" />
+				<label text="labels.signal.clipping" />
+				<label text="labels.knee" />
+				
+				<!-- Row 2 -->
+				<knob id="g_out" />
+				<combo id="out_cf" />
+				<knob id="out_kn" />
+				
+				<!-- Row 3 -->
+				<value id="g_out" />
+				<ledmeter hexpand="true" height.min="256" angle="0">
+					<ledchannel id="out_cml" min="-36 db" max="0 db" log="true" type="peak" balance="0 db" balance.visibility="true" value.color="blue"/>
+					<ledchannel id="out_cmr" min="-36 db" max="0 db" log="true" type="peak" balance="0 db" balance.visibility="true" value.color="blue"/>
+				</ledmeter>
+				<value id="out_kn" />
+			</grid>
+		</group>
 
 		<!-- Column 2 -->		
-		<cell rows="2">
-			<vbox>
+		<cell rows="4">
+			<vbox hexpand="true">
 				<group text="groups.analysis">
 					<vbox>
 						<!-- Goniometer with it's settings -->
 						<grid rows="2" cols="2">
-							<graph width.min="256" height.min="256" expand="true" fill="true" border.size="1" border.color="bg_light">
+							<graph width.min="320" height.min="320" expand="true" fill="true" border.size="1" border.color="bg_light">
 								<!-- Origin -->
 								<origin halign="0.0" valign="0.0" visible="false"/>
 		

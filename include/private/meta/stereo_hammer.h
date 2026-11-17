@@ -76,6 +76,11 @@ namespace lsp
             static constexpr float  LOUD_METER_DFL              = GAIN_AMP_M_INF_DB;    // Loudness meter default
             static constexpr float  LOUD_METER_STEP             = 0.01f;                // Loudness meter step
 
+            static constexpr float  CLIP_THRESH_MIN             = -72.0f;               // Minimum clipping threshold
+            static constexpr float  CLIP_THRESH_MAX             = 0.0f;                 // Maximum clipping threshold
+            static constexpr float  CLIP_THRESH_DFL             = -3.0f;                // Default clipping threshold
+            static constexpr float  CLIP_THRESH_STEP            = 0.05f;                // Clipping step
+
         } stereo_hammer_metadata;
 
         // Plugin type metadata

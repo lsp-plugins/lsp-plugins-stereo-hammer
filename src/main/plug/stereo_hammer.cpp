@@ -54,6 +54,23 @@ namespace lsp
 
         //---------------------------------------------------------------------
         // Implementation
+        dspu::sigmoid::function_t stereo_hammer::vSigmoidFunctions[] =
+        {
+            NULL,
+            dspu::sigmoid::hard_clip,
+            dspu::sigmoid::quadratic,
+            dspu::sigmoid::sine,
+            dspu::sigmoid::logistic,
+            dspu::sigmoid::arctangent,
+            dspu::sigmoid::hyperbolic_tangent,
+            dspu::sigmoid::guidermannian,
+            dspu::sigmoid::error,
+            dspu::sigmoid::smoothstep,
+            dspu::sigmoid::smootherstep,
+            dspu::sigmoid::circle
+        };
+
+
         stereo_hammer::stereo_hammer(const meta::plugin_t *meta):
             Module(meta)
         {
@@ -76,6 +93,8 @@ namespace lsp
                 c->pLevelOut            = NULL;
             }
 
+            construct_clipper(&sInClip);
+            construct_clipper(&sOutClip);
             construct_stage(&sLRProc);
             construct_stage(&sMSProc);
 
@@ -85,8 +104,6 @@ namespace lsp
             vRamp[0]            = NULL;
             vRamp[1]            = NULL;
 
-            sOldParam.fGainOut  = GAIN_AMP_0_DB;
-            sNewParam.fGainOut  = GAIN_AMP_0_DB;
             nGonioStrobe        = 0;
             nGonioPeriod        = 0;
             fGonioScale         = GAIN_AMP_0_DB;
@@ -94,7 +111,6 @@ namespace lsp
             fCorrOut            = 0.0f;
 
             pBypass             = NULL;
-            pGainOut            = NULL;
 
             pGonioScale         = NULL;
             pGoniometer         = NULL;
@@ -160,6 +176,24 @@ namespace lsp
             param->fRotateSin       = 0.0f;
         }
 
+        void stereo_hammer::construct_clipper(clipper_t *clip)
+        {
+            clip->pFunc     = NULL;
+            clip->fThresh   = GAIN_AMP_M_3_DB;
+            clip->fScaling  = 0.0f;
+            clip->fGainOld  = GAIN_AMP_0_DB;
+            clip->fGainNew  = GAIN_AMP_0_DB;
+
+            clip->fLevel[0] = GAIN_AMP_M_INF_DB;
+            clip->fLevel[1] = GAIN_AMP_M_INF_DB;
+
+            clip->pGain     = NULL;
+            clip->pFunc     = NULL;
+            clip->pKnee     = NULL;
+            clip->pClip[0]  = NULL;
+            clip->pClip[1]  = NULL;
+        }
+
         stereo_hammer::~stereo_hammer()
         {
             do_destroy();
@@ -217,13 +251,16 @@ namespace lsp
 
             // Bind bypass
             BIND_PORT(pBypass);
-            BIND_PORT(pGainOut);
 
             // Bind processor-specific ports
+            lsp_trace("Binding input clipper");
+            bind_clipper(&sInClip, port_id, ports);
             lsp_trace("Binding LR stage");
             bind_stage(&sLRProc, port_id, ports);
             lsp_trace("Binding MS stage");
             bind_stage(&sMSProc, port_id, ports);
+            lsp_trace("Binding output clipper");
+            bind_clipper(&sOutClip, port_id, ports);
 
             // Bind metering ports
             lsp_trace("Binding Metering ports");
@@ -279,6 +316,15 @@ namespace lsp
             BIND_PORT(stage->pMeasure);
             BIND_PORT(stage->pMeasureLvl[0]);
             BIND_PORT(stage->pMeasureLvl[1]);
+        }
+
+        void stereo_hammer::bind_clipper(clipper_t *clip, size_t & port_id, plug::IPort **ports)
+        {
+            BIND_PORT(clip->pGain);
+            BIND_PORT(clip->pFunc);
+            BIND_PORT(clip->pKnee);
+            BIND_PORT(clip->pClip[0]);
+            BIND_PORT(clip->pClip[1]);
         }
 
         void stereo_hammer::destroy()
@@ -394,6 +440,17 @@ namespace lsp
             }
         }
 
+        void stereo_hammer::update_clip_settings(clipper_t *clip)
+        {
+            const float thresh          = dspu::db_to_gain(clip->pKnee->value());
+            const float knee            = GAIN_AMP_0_DB - thresh;
+
+            clip->fGainNew              = clip->pGain->value();
+            clip->fThresh               = thresh;
+            clip->fScaling              = 1.0f / knee;
+            clip->hFunc                 = vSigmoidFunctions[size_t(clip->pFunc->value())];
+        }
+
         void stereo_hammer::update_settings()
         {
             const bool bypass       = pBypass->value() >= 0.5f;
@@ -404,6 +461,8 @@ namespace lsp
                 c->sBypass.set_bypass(bypass);
             }
 
+            update_clip_settings(&sInClip);
+            update_clip_settings(&sOutClip);
             update_stage_settings(&sLRProc);
             update_stage_settings(&sMSProc);
 
@@ -671,11 +730,18 @@ namespace lsp
 
         void stereo_hammer::reset_meters()
         {
+            sInClip.fLevel[0]       = GAIN_AMP_M_INF_DB;
+            sInClip.fLevel[1]       = GAIN_AMP_M_INF_DB;
+
+            sOutClip.fLevel[0]      = GAIN_AMP_M_INF_DB;
+            sOutClip.fLevel[1]      = GAIN_AMP_M_INF_DB;
+
             sLRProc.vMeasure[0]     = GAIN_AMP_M_INF_DB;
             sLRProc.vMeasure[1]     = GAIN_AMP_M_INF_DB;
 
             sMSProc.vMeasure[0]     = GAIN_AMP_M_INF_DB;
             sMSProc.vMeasure[1]     = GAIN_AMP_M_INF_DB;
+
 
             fCorrIn                 = 0.0f;
             fCorrOut                = 0.0f;
@@ -683,6 +749,12 @@ namespace lsp
 
         void stereo_hammer::output_meters()
         {
+            sInClip.pClip[0]->set_value(clip_reduction(&sInClip, sInClip.fLevel[0]));
+            sInClip.pClip[1]->set_value(clip_reduction(&sInClip, sInClip.fLevel[1]));
+
+            sOutClip.pClip[0]->set_value(clip_reduction(&sOutClip, sOutClip.fLevel[0]));
+            sOutClip.pClip[1]->set_value(clip_reduction(&sOutClip, sOutClip.fLevel[1]));
+
             sLRProc.pMeasureLvl[0]->set_value(sLRProc.vMeasure[0]);
             sLRProc.pMeasureLvl[1]->set_value(sLRProc.vMeasure[1]);
 
@@ -763,6 +835,101 @@ namespace lsp
             return (fabs(value) < fabs(c_max)) ? c_max : value;
         }
 
+        float stereo_hammer::clip_reduction(clipper_t *clip, float sample)
+        {
+            const float threshold   = clip->fThresh;
+            const float knee        = GAIN_AMP_0_DB - threshold;
+            float s = sample;
+            if (s > threshold)
+            {
+                s               = (s - threshold) * clip->fScaling;
+                return (clip->hFunc(s) * knee + threshold) / sample;
+            }
+
+            return GAIN_AMP_0_DB;
+        }
+
+        void stereo_hammer::clip_channel(clipper_t *clip, float *out, const float *in, size_t samples)
+        {
+            const float threshold   = clip->fThresh;
+            const float knee        = GAIN_AMP_0_DB - threshold;
+            const float scaling     = clip->fScaling;
+            const dspu::sigmoid::function_t func = clip->hFunc;
+
+            for (size_t i=0; i<samples; ++i)
+            {
+                float s             = in[i];
+                if (s > threshold)
+                {
+                    s               = (s - threshold) * scaling;
+                    out[i]          = func(s) * knee + threshold;
+                }
+                else if (s < -threshold)
+                {
+                    s               = (s + threshold) * scaling;
+                    out[i]          = func(s) * knee - threshold;
+                }
+                else
+                    out[i]          = s;
+            }
+        }
+
+        bool stereo_hammer::process_clipper(clipper_t *clip, float **ins, float **outs, size_t offset, size_t total, size_t samples)
+        {
+            if ((clip->fGainNew == clip->fGainOld) &&
+                (clip->fGainNew == GAIN_AMP_0_DB) &&
+                (clip->hFunc == NULL))
+                return false;
+
+            float *src[2];
+
+            // Apply input gain
+            if (clip->fGainNew != clip->fGainOld)
+            {
+                dsp::lin_inter_mul3(
+                    outs[0], ins[0],
+                    0.0f, clip->fGainOld,
+                    total, clip->fGainNew,
+                    offset, samples);
+                dsp::lin_inter_mul3(
+                    outs[1], ins[1],
+                    0.0f, clip->fGainOld,
+                    total, clip->fGainNew,
+                    offset, samples);
+
+                src[0]  = outs[0];
+                src[1]  = outs[1];
+            }
+            else if (clip->fGainNew != GAIN_AMP_0_DB)
+            {
+                dsp::mul_k3(outs[0], ins[0], clip->fGainNew, samples);
+                dsp::mul_k3(outs[1], ins[1], clip->fGainNew, samples);
+
+                src[0]  = outs[0];
+                src[1]  = outs[1];
+            }
+            else
+            {
+                src[0]  = ins[0];
+                src[1]  = ins[1];
+            }
+
+            // Apply clipping
+            if (clip->hFunc != NULL)
+            {
+                const float in_lvl_a    = dsp::abs_max(src[0], samples);
+                clip_channel(clip, outs[0], src[0], samples);
+
+                const float in_lvl_b    = dsp::abs_max(src[1], samples);
+                clip_channel(clip, outs[1], src[1], samples);
+
+                clip->fLevel[0]         = lsp_max(clip->fLevel[0], in_lvl_a);
+                clip->fLevel[1]         = lsp_max(clip->fLevel[1], in_lvl_b);
+            }
+
+            return true;
+        }
+
         void stereo_hammer::process(size_t samples)
         {
             bind_buffers();
@@ -780,9 +947,16 @@ namespace lsp
                 // Measure correlation of input signal
                 fCorrIn             = update_correlation(fCorrIn, sInCorr, ins[0], ins[1], to_do);
 
+                // Apply pre-clipping
+                outs[0]             = vChannels[0].vData;
+                outs[1]             = vChannels[1].vData;
+                if (process_clipper(&sInClip, ins, outs, offset, samples, to_do))
+                {
+                    ins[0]              = outs[0];
+                    ins[1]              = outs[1];
+                }
+
                 // Process stage 1
-                outs[0]             = vBuffer[0];
-                outs[1]             = vBuffer[1];
                 process_stage(&sLRProc, ins, outs, offset, samples, to_do);
 
                 // Perform in-place left-right -> mid-side transform
@@ -794,8 +968,6 @@ namespace lsp
                 // Process stage 2, result should be stored in another temporary buffer
                 ins[0]              = outs[0];
                 ins[1]              = outs[1];
-                outs[0]             = vChannels[0].vData;
-                outs[1]             = vChannels[1].vData;
                 process_stage(&sMSProc, ins, outs, offset, samples, to_do);
 
                 // Perform in-place reverse mid-side -> left-right transform
@@ -804,29 +976,10 @@ namespace lsp
                     outs[0], outs[1],
                     to_do);
 
-                // Apply output gain
-                {
-                    if (sOldParam.fGainOut != sNewParam.fGainOut)
-                    {
-                        dsp::lin_inter_mul2(
-                            outs[0],
-                            0.0f, sOldParam.fGainOut,
-                            samples, sNewParam.fGainOut,
-                            offset, samples);
-                        dsp::lin_inter_mul2(
-                            outs[1],
-                            0.0f, sOldParam.fGainOut,
-                            samples, sNewParam.fGainOut,
-                            offset, samples);
-                    }
-                    else
-                    {
-                        dsp::mul_k2(outs[0], sNewParam.fGainOut, to_do);
-                        dsp::mul_k2(outs[1], sNewParam.fGainOut, to_do);
-                    }
-                }
+                // Apply in-place post-clipping
+                process_clipper(&sOutClip, outs, outs, offset, samples, to_do);
 
-                // Apply goniometer and correlometer
+                // Apply goniometer and output correlometer
                 ins[0]              = vChannels[0].vIn;
                 ins[1]              = vChannels[1].vIn;
                 process_goniometer(ins, outs, to_do);
@@ -847,7 +1000,8 @@ namespace lsp
             // Commit new state of stereo processors
             sLRProc.sOld            = sLRProc.sNew;
             sMSProc.sOld            = sMSProc.sNew;
-            sOldParam               = sNewParam;
+            sInClip.fGainOld        = sInClip.fGainNew;
+            sOutClip.fGainOld       = sOutClip.fGainNew;
 
             // Output meters and graphs
             output_meters();

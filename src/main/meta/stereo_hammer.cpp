@@ -42,15 +42,33 @@ namespace lsp
         //-------------------------------------------------------------------------
         // Plugin metadata
 
+        static const port_item_t clipping_functions[] =
+        {
+            { "Off",                "sigmoid.off"                           },
+            { "Hard clip",          "sigmoid.hardclip"                      },
+            { "Parabolic",          "sigmoid.parabolic"                     },
+            { "Sine",               "sigmoid.sine"                          },
+            { "Logistic",           "sigmoid.logistic"                      },
+            { "Arctangent",         "sigmoid.arctangent"                    },
+            { "Hyperbolic tangent", "sigmoid.hyperbolic_tangent"            },
+            { "Guidermannian",      "sigmoid.guidermannian"                 },
+            { "Error function",     "sigmoid.error_function"                },
+            { "Smoothstep",         "sigmoid.smoothstep"                    },
+            { "Smootherstep",       "sigmoid.smootherstep"                  },
+            { "Circle",             "sigmoid.circle"                        },
+
+            { NULL, NULL }
+        };
+
         static const port_item_t measuring_stages[] =
         {
-            { "Pre-gain",       "stereo_hammer.measure.pre-gain"        },
-            { "Panning",        "stereo_hammer.measure.panning"         },
-            { "Pre-balance",    "stereo_hammer.measure.pre-balance"     },
-            { "Rotation",       "stereo_hammer.measure.rotation"        },
-            { "Post-gain",      "stereo_hammer.measure.post-gain"       },
-            { "Post-balance",   "stereo_hammer.measure.post-balance"    },
-            { "Delay",          "stereo_hammer.measure.delay"           },
+            { "Pre-gain",           "stereo_hammer.measure.pre-gain"        },
+            { "Panning",            "stereo_hammer.measure.panning"         },
+            { "Pre-balance",        "stereo_hammer.measure.pre-balance"     },
+            { "Rotation",           "stereo_hammer.measure.rotation"        },
+            { "Post-gain",          "stereo_hammer.measure.post-gain"       },
+            { "Post-balance",       "stereo_hammer.measure.post-balance"    },
+            { "Delay",              "stereo_hammer.measure.delay"           },
             { NULL, NULL }
         };
 
@@ -61,7 +79,13 @@ namespace lsp
 
             // Common controls
             BYPASS,
-            OUT_GAIN,
+
+            // Input
+            IN_GAIN,
+            COMBO("in_cf", "Input clipping function", "Clip In", 0, clipping_functions),
+            CONTROL("in_kn", "Input clipping knee", "Knee In", U_DB, stereo_hammer_metadata::CLIP_THRESH),
+            METER_OUT_GAIN("in_cml", "Input clipping meter left", GAIN_AMP_0_DB), \
+            METER_OUT_GAIN("in_cmr", "Input clipping meter right", GAIN_AMP_0_DB), \
 
             // Stereo stage
             SWITCH("lr_on", "Stereo processor on", "Stereo On", 1),
@@ -104,6 +128,13 @@ namespace lsp
             COMBO("ms_msr", "Mid/Side measure place", "M/S Measure", 6, measuring_stages),
             METER_OUT_GAIN("ms_mlm", "Measued level meter mid", GAIN_AMP_P_36_DB), \
             METER_OUT_GAIN("ms_mls", "Measued level meter side", GAIN_AMP_P_36_DB), \
+
+            // Output
+            OUT_GAIN,
+            COMBO("out_cf", "Output clipping function", "Clip Out", 0, clipping_functions),
+            CONTROL("out_kn", "Output clipping knee", "Knee Out", U_DB, stereo_hammer_metadata::CLIP_THRESH),
+            METER_OUT_GAIN("out_cml", "Output clipping meter left", GAIN_AMP_0_DB), \
+            METER_OUT_GAIN("out_cmr", "Output clipping meter right", GAIN_AMP_0_DB), \
 
             // Metering
             CONTROL("goniohs", "Goniometer strobe history size", "Gonio history", U_NONE, stereo_hammer_metadata::GONIO_HISTORY), \
