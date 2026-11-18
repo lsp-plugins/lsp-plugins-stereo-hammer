@@ -106,11 +106,13 @@ namespace lsp
 
             nGonioStrobe        = 0;
             nGonioPeriod        = 0;
+            nMonitoring         = MON_STEREO;
             fGonioScale         = GAIN_AMP_0_DB;
             fCorrIn             = 0.0f;
             fCorrOut            = 0.0f;
 
             pBypass             = NULL;
+            pMonitoring         = NULL;
 
             pGonioScale         = NULL;
             pGoniometer         = NULL;
@@ -251,6 +253,7 @@ namespace lsp
 
             // Bind bypass
             BIND_PORT(pBypass);
+            BIND_PORT(pMonitoring);
 
             // Bind processor-specific ports
             lsp_trace("Binding input clipper");
@@ -469,6 +472,7 @@ namespace lsp
             // Update goniometer settings
             nGonioPeriod        = dspu::hz_to_samples(fSampleRate, meta::stereo_hammer_metadata::GONIO_REFRESH_RATE);
             fGonioScale         = dspu::db_to_gain(pGonioScale->value());
+            nMonitoring         = uint32_t(pMonitoring->value());
         }
 
         void stereo_hammer::bind_buffers()
@@ -930,6 +934,50 @@ namespace lsp
             return true;
         }
 
+        void stereo_hammer::apply_monitoring(float **bufs, size_t samples)
+        {
+            switch (nMonitoring)
+            {
+                case MON_STEREO:
+                    break;
+                case MON_INVERSE_STEREO:
+                    lsp::swap(bufs[0], bufs[1]);
+                    break;
+                case MON_MONO:
+                    dsp::lr_to_mid(bufs[0], bufs[0], bufs[1], samples);
+                    dsp::copy(bufs[1], bufs[0], samples);
+                    break;
+                case MON_SIDE:
+                    dsp::lr_to_side(bufs[0], bufs[0], bufs[1], samples);
+                    dsp::copy(bufs[1], bufs[0], samples);
+                    break;
+                case MON_SIDES:
+                    dsp::lr_to_side(bufs[0], bufs[0], bufs[1], samples);
+                    dsp::mul_k3(bufs[1], bufs[0], -1.0f, samples);
+                    break;
+                case MON_MID_SIDE:
+                    dsp::lr_to_ms(bufs[0], bufs[1], bufs[0], bufs[1], samples);
+                    break;
+                case MON_SIDE_MID:
+                    dsp::lr_to_ms(bufs[1], bufs[0], bufs[0], bufs[1], samples);
+                    break;
+                case MON_LEFT:
+                    bufs[1]     = bufs[0];
+                    break;
+                case MON_LEFT_ONLY:
+                    dsp::fill_zero(bufs[1], samples);
+                    break;
+                case MON_RIGHT_ONLY:
+                    dsp::fill_zero(bufs[0], samples);
+                    break;
+                case MON_RIGHT:
+                    bufs[0]     = bufs[1];
+                    break;
+                default:
+                    break;
+            }
+        }
+
         void stereo_hammer::process(size_t samples)
         {
             bind_buffers();
@@ -984,6 +1032,9 @@ namespace lsp
                 ins[1]              = vChannels[1].vIn;
                 process_goniometer(ins, outs, to_do);
                 fCorrOut            = update_correlation(fCorrOut, sOutCorr, outs[0], outs[1], to_do);
+
+                // Apply monitoring setup
+                apply_monitoring(outs, to_do);
 
                 // Apply bypasses
                 for (size_t i=0; i<2; ++i)

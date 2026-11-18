@@ -62,13 +62,29 @@ namespace lsp
 
         static const port_item_t measuring_stages[] =
         {
-            { "Pre-gain",           "stereo_hammer.measure.pre-gain"        },
+            { "Pre-gain",           "stereo_hammer.measure.pre_gain"        },
             { "Panning",            "stereo_hammer.measure.panning"         },
-            { "Pre-balance",        "stereo_hammer.measure.pre-balance"     },
+            { "Pre-balance",        "stereo_hammer.measure.pre_balance"     },
             { "Rotation",           "stereo_hammer.measure.rotation"        },
-            { "Post-gain",          "stereo_hammer.measure.post-gain"       },
-            { "Post-balance",       "stereo_hammer.measure.post-balance"    },
+            { "Post-gain",          "stereo_hammer.measure.post_gain"       },
+            { "Post-balance",       "stereo_hammer.measure.post_balance"    },
             { "Delay",              "stereo_hammer.measure.delay"           },
+            { NULL, NULL }
+        };
+
+        static const port_item_t monitoring_selectors[] =
+        {
+            { "Stereo",             "stereo_hammer.monitoring.stereo"            },
+            { "Inverse Stereo",     "stereo_hammer.monitoring.inverse_stereo"    },
+            { "Mono",               "stereo_hammer.monitoring.mono"              },
+            { "Side",               "stereo_hammer.monitoring.side"              },
+            { "Sides",              "stereo_hammer.monitoring.sides"             },
+            { "Mid/Side",           "stereo_hammer.monitoring.mid_side"          },
+            { "Side/Mid",           "stereo_hammer.monitoring.side_mid"          },
+            { "Left Only",          "stereo_hammer.monitoring.left_only"         },
+            { "Left",               "stereo_hammer.monitoring.left"              },
+            { "Right",              "stereo_hammer.monitoring.right"             },
+            { "Right Only",         "stereo_hammer.monitoring.right_only"        },
             { NULL, NULL }
         };
 
@@ -79,13 +95,14 @@ namespace lsp
 
             // Common controls
             BYPASS,
+            COMBO("monitor", "Monitoring mode", "Monitoring", 0, monitoring_selectors),
 
             // Input
             IN_GAIN,
             COMBO("in_cf", "Input clipping function", "Clip In", 0, clipping_functions),
             CONTROL("in_kn", "Input clipping knee", "Knee In", U_DB, stereo_hammer_metadata::CLIP_THRESH),
-            METER_OUT_GAIN("in_cml", "Input clipping meter left", GAIN_AMP_0_DB), \
-            METER_OUT_GAIN("in_cmr", "Input clipping meter right", GAIN_AMP_0_DB), \
+            METER_OUT_GAIN("in_cml", "Input clipping meter left", GAIN_AMP_0_DB),
+            METER_OUT_GAIN("in_cmr", "Input clipping meter right", GAIN_AMP_0_DB),
 
             // Stereo stage
             SWITCH("lr_on", "Stereo processor on", "Stereo On", 1),
@@ -105,8 +122,8 @@ namespace lsp
             PAN_CTL("lr_abal", "Stereo post-balance", "Post-Bal L/R", 0.0f),
             CONTROL("lr_dly", "Stereo delay shift", "L/R Delay", U_MSEC, stereo_hammer_metadata::DELAY_SHIFT),
             COMBO("lr_msr", "Stereo measure place", "L/R Measure", 6, measuring_stages),
-            METER_OUT_GAIN("lr_mll", "Measued level meter left", GAIN_AMP_P_36_DB), \
-            METER_OUT_GAIN("lr_mlr", "Measued level meter right", GAIN_AMP_P_36_DB), \
+            METER_OUT_GAIN("lr_mll", "Measued level meter left", GAIN_AMP_P_36_DB),
+            METER_OUT_GAIN("lr_mlr", "Measued level meter right", GAIN_AMP_P_36_DB),
 
             // Mid/Side stage
             SWITCH("ms_on", "Mid/Side processor On", "M/S On", 1),
@@ -126,38 +143,38 @@ namespace lsp
             PAN_CTL("ms_abal", "Mid/Side post-balance", "Post-Bal M/S", 0.0f),
             CONTROL("ms_dly", "Mid/Side delay shift", "M/S Delay", U_MSEC, stereo_hammer_metadata::DELAY_SHIFT),
             COMBO("ms_msr", "Mid/Side measure place", "M/S Measure", 6, measuring_stages),
-            METER_OUT_GAIN("ms_mlm", "Measued level meter mid", GAIN_AMP_P_36_DB), \
-            METER_OUT_GAIN("ms_mls", "Measued level meter side", GAIN_AMP_P_36_DB), \
+            METER_OUT_GAIN("ms_mlm", "Measued level meter mid", GAIN_AMP_P_36_DB),
+            METER_OUT_GAIN("ms_mls", "Measued level meter side", GAIN_AMP_P_36_DB),
 
             // Output
             OUT_GAIN,
             COMBO("out_cf", "Output clipping function", "Clip Out", 0, clipping_functions),
             CONTROL("out_kn", "Output clipping knee", "Knee Out", U_DB, stereo_hammer_metadata::CLIP_THRESH),
-            METER_OUT_GAIN("out_cml", "Output clipping meter left", GAIN_AMP_0_DB), \
-            METER_OUT_GAIN("out_cmr", "Output clipping meter right", GAIN_AMP_0_DB), \
+            METER_OUT_GAIN("out_cml", "Output clipping meter left", GAIN_AMP_0_DB),
+            METER_OUT_GAIN("out_cmr", "Output clipping meter right", GAIN_AMP_0_DB),
 
             // Metering
-            CONTROL("goniohs", "Goniometer strobe history size", "Gonio history", U_NONE, stereo_hammer_metadata::GONIO_HISTORY), \
-            LOG_CONTROL("goniond", "Maximum dots for plotting goniometer", "Max dots", U_NONE, stereo_hammer_metadata::GONIO_DOTS), \
-            SWITCH("gon_in", "Show input goniometer", "Gonio In", 1), \
-            SWITCH("gon_out", "Show output goniometer", "Gonio Out", 1), \
-            CONTROL("zoom", "Zoom", "Gonio Zoom", U_DB, stereo_hammer_metadata::GONIO_SCALE), \
-            STREAM("gon", "Goniometer stream buffer", 5, 128, 0x8000), \
-            METER("in_cm", "Input Correlation meter", U_PERCENT, stereo_hammer_metadata::CORRELATION), \
-            METER("out_cm", "Output Correlation meter", U_PERCENT, stereo_hammer_metadata::CORRELATION), \
-            METER("panm", "Panorama meter", U_NONE, stereo_hammer_metadata::PANOMETER), \
-            METER("msbm", "Mid/Side balance meter", U_NONE, stereo_hammer_metadata::PANOMETER), \
-            METER("pk", "Peak meter", U_GAIN_AMP, stereo_hammer_metadata::LOUD_METER), \
-            METER("tp", "True Peak meter", U_GAIN_AMP, stereo_hammer_metadata::LOUD_METER), \
-            METER("rms", "RMS meter", U_GAIN_AMP, stereo_hammer_metadata::LOUD_METER), \
-            METER("mlufs", "Momentary LUFS meter", U_GAIN_AMP, stereo_hammer_metadata::LOUD_METER), \
-            METER("slufs", "Short-Term LUFS meter", U_GAIN_AMP, stereo_hammer_metadata::LOUD_METER), \
-            METER("llufs", "Long-Term LUFS meter", U_GAIN_AMP, stereo_hammer_metadata::LOUD_METER), \
-            METER("ilufs", "Integrated LUFS meter", U_GAIN_AMP, stereo_hammer_metadata::LOUD_METER), \
-            METER("ilm_l", "Input level meter left", U_GAIN_AMP, stereo_hammer_metadata::LOUD_METER), \
-            METER("ilm_r", "Input level meter right", U_GAIN_AMP, stereo_hammer_metadata::LOUD_METER), \
-            METER("olm_l", "Output level meter left", U_GAIN_AMP, stereo_hammer_metadata::LOUD_METER), \
-            METER("olm_r", "Output level meter right", U_GAIN_AMP, stereo_hammer_metadata::LOUD_METER), \
+            CONTROL("goniohs", "Goniometer strobe history size", "Gonio history", U_NONE, stereo_hammer_metadata::GONIO_HISTORY),
+            LOG_CONTROL("goniond", "Maximum dots for plotting goniometer", "Max dots", U_NONE, stereo_hammer_metadata::GONIO_DOTS),
+            SWITCH("gon_in", "Show input goniometer", "Gonio In", 1),
+            SWITCH("gon_out", "Show output goniometer", "Gonio Out", 1),
+            CONTROL("zoom", "Zoom", "Gonio Zoom", U_DB, stereo_hammer_metadata::GONIO_SCALE),
+            STREAM("gon", "Goniometer stream buffer", 5, 128, 0x8000),
+            METER("in_cm", "Input Correlation meter", U_PERCENT, stereo_hammer_metadata::CORRELATION),
+            METER("out_cm", "Output Correlation meter", U_PERCENT, stereo_hammer_metadata::CORRELATION),
+            METER("panm", "Panorama meter", U_NONE, stereo_hammer_metadata::PANOMETER),
+            METER("msbm", "Mid/Side balance meter", U_NONE, stereo_hammer_metadata::PANOMETER),
+            METER("pk", "Peak meter", U_GAIN_AMP, stereo_hammer_metadata::LOUD_METER),
+            METER("tp", "True Peak meter", U_GAIN_AMP, stereo_hammer_metadata::LOUD_METER),
+            METER("rms", "RMS meter", U_GAIN_AMP, stereo_hammer_metadata::LOUD_METER),
+            METER("mlufs", "Momentary LUFS meter", U_GAIN_AMP, stereo_hammer_metadata::LOUD_METER),
+            METER("slufs", "Short-Term LUFS meter", U_GAIN_AMP, stereo_hammer_metadata::LOUD_METER),
+            METER("llufs", "Long-Term LUFS meter", U_GAIN_AMP, stereo_hammer_metadata::LOUD_METER),
+            METER("ilufs", "Integrated LUFS meter", U_GAIN_AMP, stereo_hammer_metadata::LOUD_METER),
+            METER("ilm_l", "Input level meter left", U_GAIN_AMP, stereo_hammer_metadata::LOUD_METER),
+            METER("ilm_r", "Input level meter right", U_GAIN_AMP, stereo_hammer_metadata::LOUD_METER),
+            METER("olm_l", "Output level meter left", U_GAIN_AMP, stereo_hammer_metadata::LOUD_METER),
+            METER("olm_r", "Output level meter right", U_GAIN_AMP, stereo_hammer_metadata::LOUD_METER),
 
             PORTS_END
         };

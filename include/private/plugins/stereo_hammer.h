@@ -55,6 +55,21 @@ namespace lsp
                     M_DELAY,
                 };
 
+                enum monitoring_t
+                {
+                    MON_STEREO,
+                    MON_INVERSE_STEREO,
+                    MON_MONO,
+                    MON_SIDE,
+                    MON_SIDES,
+                    MON_MID_SIDE,
+                    MON_SIDE_MID,
+                    MON_LEFT_ONLY,
+                    MON_LEFT,
+                    MON_RIGHT,
+                    MON_RIGHT_ONLY,
+                };
+
                 typedef struct clipper_t
                 {
                     dspu::sigmoid::function_t   hFunc;      // Sigmoid function
@@ -151,10 +166,12 @@ namespace lsp
 
                 uint32_t            nGonioStrobe;       // Counter for strobe signal of goniometer
                 uint32_t            nGonioPeriod;       // Goniometer period
+                uint32_t            nMonitoring;        // Monitoring mode
                 float               fGonioScale;        // Goniometer scale
                 float               fCorrIn;            // Input correlation
                 float               fCorrOut;           // Output correlation
 
+                plug::IPort        *pMonitoring;        // Monitoring mode
                 plug::IPort        *pBypass;            // Bypass
 
                 plug::IPort        *pGonioScale;        // Goniometer scaling
@@ -199,6 +216,7 @@ namespace lsp
                 void                process_goniometer(float **ins, float **outs, size_t samples);
                 bool                process_clipper(clipper_t *clip, float **ins, float **outs, size_t offset, size_t total, size_t samples);
                 float               update_correlation(float value, dspu::Correlometer & corr, const float *a, const float *b, size_t samples);
+                void                apply_monitoring(float **bufs, size_t samples);
 
             public:
                 explicit stereo_hammer(const meta::plugin_t *meta);

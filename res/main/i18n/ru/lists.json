@@ -1,0 +1,26 @@
+{
+	"stereo_hammer": {
+		"measure": {
+			"delay": "Задержка",
+			"panning": "Панорама",
+			"post_balance": "Пост-баланс",
+			"post_gain": "Пост-усиление",
+			"pre_balance": "Предбаланс",
+			"pre_gain":	"Предусиление",
+			"rotation": "Вращение"
+		},
+		"monitoring": {			
+			"left": "Левый",
+			"left_only": "Только левый",
+			"mid_side": "Мид/Сайд",
+			"mono": "Моно",			
+			"reverse_stereo": "Реверс стерео",
+			"right": "Правый",
+			"right_only": "Только правый",
+			"side": "Сайд",
+			"side_mid": "Сайд/Мид",
+			"sides": "Стороны",
+			"stereo": "Стерео"
+		}
+	}
+}

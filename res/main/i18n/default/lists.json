@@ -1,0 +1,26 @@
+{
+	"stereo_hammer": {
+		"measure": {
+			"delay": "Delay",
+			"panning": "Panning",
+			"post_balance": "Post-Balance",
+			"post_gain": "Post-Gain",
+			"pre_balance": "Pre-Balance",
+			"pre_gain":	"Pre-Gain",
+			"rotation": "Rotation"
+		},
+		"monitoring": {			
+			"left": "Left",
+			"left_only": "Left Only",
+			"mid_side": "Mid/Side",
+			"mono": "Mono",
+			"reverse_stereo": "Reverse Stereo",
+			"right": "Right",
+			"right_only": "Right Only",
+			"side": "Side",
+			"side_mid": "Side/Mid",
+			"sides": "Sides",
+			"stereo": "Stereo"
+		}
+	}
+}
